@@ -1,0 +1,21 @@
+#!/usr/bin/env node
+import { parseArgs } from "../src/args.js";
+import { CommandRunner } from "../src/command-runner.js";
+import { doctor, doctorHelp } from "../src/doctor.js";
+
+try {
+  const options = parseArgs(process.argv.slice(2));
+  if (options.help) {
+    console.log(doctorHelp());
+    process.exit(0);
+  }
+  const exitCode = await doctor({
+    ...options,
+    runner: new CommandRunner({ dryRun: options.dryRun }),
+    logger: console
+  });
+  process.exit(exitCode);
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}

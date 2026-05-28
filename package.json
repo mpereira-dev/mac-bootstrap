@@ -1,0 +1,20 @@
+{
+  "name": "mac-bootstrap",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic macOS laptop bootstrap and nightly upkeep.",
+  "bin": {
+    "mac-bootstrap": "./bin/bootstrap",
+    "mac-bootstrap-nightly": "./bin/nightly",
+    "mac-bootstrap-doctor": "./bin/doctor"
+  },
+  "scripts": {
+    "test": "node --test --experimental-test-coverage",
+    "test:unit": "node --test test/*.test.js",
+    "test:e2e": "node --test test-e2e/*.test.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "homebrewPrefix": "/opt/homebrew",
+  "defaultNode": "22",
+  "formulae": [
+    {
+      "name": "git",
+      "why": "Source control baseline for all development."
+    },
+    {
+      "name": "gh",
+      "why": "GitHub CLI for repository and issue workflows."
+    },
+    {
+      "name": "jq",
+      "why": "JSON inspection and scripting."
+    },
+    {
+      "name": "ripgrep",
+      "why": "Fast repository search."
+    },
+    {
+      "name": "coreutils",
+      "why": "GNU-compatible shell utilities."
+    },
+    {
+      "name": "tree",
+      "why": "Quick filesystem inspection."
+    },
+    {
+      "name": "volta",
+      "why": "Pinned Node.js runtime management."
+    },
+    {
+      "name": "python",
+      "why": "General scripting and local tooling."
+    },
+    {
+      "name": "oven-sh/bun/bun",
+      "why": "Installed intentionally on the source laptop for JavaScript tooling."
+    }
+  ],
+  "casks": [
+    {
+      "name": "claude-code",
+      "command": "claude",
+      "selfUpdate": ["claude", "update"],
+      "why": "Claude Code CLI."
+    },
+    {
+      "name": "codex",
+      "command": "codex",
+      "why": "OpenAI Codex CLI."
+    },
+    {
+      "name": "antigravity-cli",
+      "command": "antigravity",
+      "why": "Antigravity CLI."
+    }
+  ],
+  "npmGlobals": []
+}

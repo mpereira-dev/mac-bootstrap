@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.mac-bootstrap.nightly</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/earth/.volta/bin/node</string>
+    <string>/Users/earth/projects/mac-bootstrap/bin/nightly</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/earth/.volta/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>4</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>/Users/earth/Library/Logs/mac-bootstrap-nightly.launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/earth/Library/Logs/mac-bootstrap-nightly.launchd.err.log</string>
+  <key>WorkingDirectory</key>
+  <string>/Users/earth/projects/mac-bootstrap</string>
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

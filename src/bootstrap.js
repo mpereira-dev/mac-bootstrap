@@ -1,0 +1,210 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { formatCommand } from "./command-runner.js";
+import { brewPath, loadManifest } from "./manifest.js";
+import { checkNetwork } from "./network.js";
+
+export function bootstrapHelp() {
+  return `Usage: ./bin/bootstrap [--dry-run] [--home PATH] [--packages PATH]
+
+Bootstraps a macOS development laptop from the curated package manifest.`;
+}
+
+export async function bootstrap({
+  dryRun = false,
+  home = os.homedir(),
+  manifestPath,
+  runner,
+  logger = console,
+  networkCheck = checkNetwork
+}) {
+  const manifest = loadManifest(manifestPath);
+
+  if (dryRun) {
+    printBootstrapPlan({ home, manifest, logger });
+    return 0;
+  }
+
+  if (!(await networkCheck())) {
+    logger.error("Network unavailable; bootstrap cannot install packages.");
+    return 2;
+  }
+
+  ensureDirectories(home, logger);
+  ensureZshrc(home, logger);
+  const failures = [];
+  if (!ensureXcodeCli(runner, logger).ok) {
+    failures.push("xcode-cli-tools");
+  }
+  if (!ensureHomebrew(runner, manifest, logger).ok) {
+    failures.push("homebrew");
+  }
+
+  for (const formula of manifest.formulae) {
+    const result = ensureFormula(runner, manifest, formula.name, logger);
+    if (!result.ok) {
+      failures.push(`formula:${formula.name}`);
+    }
+  }
+
+  for (const cask of manifest.casks) {
+    const result = ensureCask(runner, manifest, cask.name, logger);
+    if (!result.ok) {
+      failures.push(`cask:${cask.name}`);
+    }
+  }
+
+  const nodeResult = ensureVoltaNode(runner, manifest, logger);
+  if (!nodeResult.ok) {
+    failures.push(`node:${manifest.defaultNode}`);
+  }
+
+  if (failures.length > 0) {
+    logger.error(`Bootstrap completed with failures: ${failures.join(", ")}`);
+    return 1;
+  }
+
+  logger.log("Bootstrap complete.");
+  return 0;
+}
+
+export function printBootstrapPlan({ home, manifest, logger }) {
+  logger.log("[dry-run] bootstrap plan");
+  logger.log(`[dry-run] ensure directory ${path.join(home, "Library", "LaunchAgents")}`);
+  logger.log(`[dry-run] ensure directory ${path.join(home, "Library", "Logs")}`);
+  logger.log(`[dry-run] ensure minimal zsh config ${path.join(home, ".zshrc")}`);
+  logger.log(`[dry-run] check ${formatCommand("xcode-select", ["-p"])}`);
+  logger.log(`[dry-run] install Xcode CLI tools if missing`);
+  logger.log(`[dry-run] install Homebrew at ${manifest.homebrewPrefix} if missing`);
+  for (const formula of manifest.formulae) {
+    logger.log(`[dry-run] brew install ${formula.name} if missing`);
+  }
+  for (const cask of manifest.casks) {
+    logger.log(`[dry-run] brew install --cask ${cask.name} if missing`);
+  }
+  logger.log(`[dry-run] volta install node@${manifest.defaultNode}`);
+}
+
+function ensureDirectories(home, logger) {
+  for (const directory of [
+    path.join(home, "Library", "LaunchAgents"),
+    path.join(home, "Library", "Logs"),
+    path.join(home, ".config"),
+    path.join(home, ".mac-bootstrap")
+  ]) {
+    fs.mkdirSync(directory, { recursive: true });
+    logger.log(`Ensured directory ${directory}`);
+  }
+}
+
+function ensureZshrc(home, logger) {
+  const zshrc = path.join(home, ".zshrc");
+  const block = [
+    "",
+    "# mac-bootstrap managed baseline",
+    "export HOMEBREW_PREFIX=\"/opt/homebrew\"",
+    "if [ -x \"$HOMEBREW_PREFIX/bin/brew\" ]; then",
+    "  eval \"$($HOMEBREW_PREFIX/bin/brew shellenv)\"",
+    "fi",
+    "export VOLTA_HOME=\"$HOME/.volta\"",
+    "export PATH=\"$VOLTA_HOME/bin:$PATH\"",
+    "# end mac-bootstrap managed baseline",
+    ""
+  ].join("\n");
+
+  if (!fs.existsSync(zshrc)) {
+    fs.writeFileSync(zshrc, block, { mode: 0o644 });
+    logger.log(`Created ${zshrc}`);
+    return;
+  }
+
+  const existing = fs.readFileSync(zshrc, "utf8");
+  if (!existing.includes("# mac-bootstrap managed baseline")) {
+    fs.appendFileSync(zshrc, block);
+    logger.log(`Appended mac-bootstrap shell baseline to ${zshrc}`);
+  } else {
+    logger.log(`${zshrc} already contains mac-bootstrap shell baseline`);
+  }
+}
+
+function ensureXcodeCli(runner, logger) {
+  const check = runner.run("xcode-select", ["-p"]);
+  if (check.status === 0) {
+    logger.log("Xcode CLI tools already installed.");
+    return { ok: true };
+  }
+
+  const install = runner.run("xcode-select", ["--install"]);
+  if (install.status !== 0) {
+    logger.error(`Failed to start Xcode CLI tools install: ${install.stderr}`);
+    return { ok: false };
+  }
+  logger.log("Started Xcode CLI tools install.");
+  return { ok: true };
+}
+
+function ensureHomebrew(runner, manifest, logger) {
+  const brew = brewPath(manifest);
+  if (fs.existsSync(brew)) {
+    logger.log(`Homebrew already present at ${brew}.`);
+    return { ok: true };
+  }
+
+  const command = "/bin/bash";
+  const args = [
+    "-c",
+    "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  ];
+  const install = runner.run(command, args);
+  if (install.status !== 0) {
+    logger.error(`Failed to install Homebrew: ${install.stderr}`);
+    return { ok: false };
+  }
+  logger.log("Installed Homebrew.");
+  return { ok: true };
+}
+
+export function ensureFormula(runner, manifest, name, logger = console) {
+  const brew = brewPath(manifest);
+  const check = runner.run(brew, ["list", "--formula", name]);
+  if (check.status === 0) {
+    logger.log(`Formula already installed: ${name}`);
+    return { ok: true, changed: false };
+  }
+
+  const install = runner.run(brew, ["install", name]);
+  if (install.status !== 0) {
+    logger.error(`Formula install failed for ${name}: ${install.stderr}`);
+    return { ok: false, changed: false };
+  }
+  logger.log(`Installed formula: ${name}`);
+  return { ok: true, changed: true };
+}
+
+export function ensureCask(runner, manifest, name, logger = console) {
+  const brew = brewPath(manifest);
+  const check = runner.run(brew, ["list", "--cask", name]);
+  if (check.status === 0) {
+    logger.log(`Cask already installed: ${name}`);
+    return { ok: true, changed: false };
+  }
+
+  const install = runner.run(brew, ["install", "--cask", name]);
+  if (install.status !== 0) {
+    logger.error(`Cask install failed for ${name}: ${install.stderr}`);
+    return { ok: false, changed: false };
+  }
+  logger.log(`Installed cask: ${name}`);
+  return { ok: true, changed: true };
+}
+
+function ensureVoltaNode(runner, manifest, logger) {
+  const result = runner.run("volta", ["install", `node@${manifest.defaultNode}`]);
+  if (result.status !== 0) {
+    logger.error(`Failed to install Node via Volta: ${result.stderr}`);
+    return { ok: false };
+  }
+  logger.log(`Ensured Node ${manifest.defaultNode} via Volta.`);
+  return { ok: true };
+}

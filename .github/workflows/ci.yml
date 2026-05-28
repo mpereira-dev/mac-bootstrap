@@ -1,0 +1,23 @@
+# mac-bootstrap CI. Keep the `test` job required in branch protection on main.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: ./bin/bootstrap --dry-run
+      - run: ./bin/nightly --dry-run
+      - run: ./bin/doctor --dry-run
