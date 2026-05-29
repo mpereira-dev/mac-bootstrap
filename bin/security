@@ -1,0 +1,72 @@
+#!/usr/bin/env node
+// Security CLI — detect / suggest / apply across all three modules.
+//   ./bin/security              # detect + suggest (read-only)
+//   ./bin/security --apply      # apply suggestions (will require sudo for firewall + ssh)
+//   ./bin/security --dry-run    # show what would change
+//   ./bin/security --apply --skip filevault  # skip a specific module
+import { detectAll, suggestAll, MODULES, filevault, firewall, sshHardening } from "../src/security/index.js";
+import { createCommandRunner } from "../src/command-runner.js";
+
+function parseArgs(argv) {
+  const out = { apply: false, dryRun: false, skip: new Set(), sshMode: "harden" };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--apply") out.apply = true;
+    else if (a === "--dry-run") out.dryRun = true;
+    else if (a === "--skip") out.skip.add(argv[++i]);
+    else if (a === "--ssh-mode") out.sshMode = argv[++i]; // "harden" | "disable"
+    else if (a === "--help" || a === "-h") {
+      console.log(`Usage: ./bin/security [--apply] [--dry-run] [--skip <module>] [--ssh-mode harden|disable]
+  Modules: filevault, firewall, ssh-hardening
+  Default (no args): detect + suggest (read-only).
+  Default ssh-mode: harden (writes /etc/ssh/sshd_config.d/99-mac-bootstrap.conf).
+  Use --ssh-mode disable to turn off Remote Login entirely (recommended if you don't use SSH).`);
+      process.exit(0);
+    }
+  }
+  return out;
+}
+
+const args = parseArgs(process.argv.slice(2));
+const runner = createCommandRunner();
+
+console.log("=== detect ===");
+const states = await detectAll({ runner });
+for (const [name, state] of Object.entries(states)) {
+  console.log(`  ${name}: ${JSON.stringify(state)}`);
+}
+
+console.log("\n=== suggest ===");
+const suggestions = await suggestAll({ runner });
+for (const [name, s] of Object.entries(suggestions)) {
+  console.log(`  ${name}: ${s.advice}`);
+  if (s.command) console.log(`    cmd: ${s.command}`);
+  if (s.commands) for (const c of s.commands) console.log(`    cmd: ${c}`);
+  if (s.options) {
+    for (const o of s.options) {
+      console.log(`    option: ${o.label}`);
+      if (o.command) console.log(`      ${o.command}`);
+      if (o.commands) for (const c of o.commands) console.log(`      ${c}`);
+    }
+  }
+  if (s.notes) for (const n of s.notes) console.log(`    note: ${n}`);
+}
+
+if (!args.apply) {
+  console.log("\n(read-only run; pass --apply to apply suggestions)");
+  process.exit(0);
+}
+
+console.log("\n=== apply ===");
+const targets = MODULES.filter((m) => !args.skip.has(m.name));
+for (const m of targets) {
+  console.log(`-> ${m.name}`);
+  const opts = { runner, dryRun: args.dryRun, logger: console };
+  if (m.name === "ssh-hardening") opts.mode = args.sshMode;
+  try {
+    const r = await m.apply(opts);
+    console.log(`   result: ${JSON.stringify(r)}`);
+  } catch (e) {
+    console.log(`   error: ${e.message}`);
+  }
+}
