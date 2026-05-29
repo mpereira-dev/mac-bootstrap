@@ -1,6 +1,7 @@
-# Auto-generated 2026-05-29: opt-in to code-scan's advisory security scanning.
+# Auto-generated 2026-05-29: opt-in to code-scan advisory security scanning.
 # https://github.com/mpereira-dev/code-scan — never blocks merges; findings file
 # rolling advisory issues, not CI failures.
+# Updated: trigger fresh run after enabling cross-repo workflow access.
 name: security
 on:
   pull_request: {}
