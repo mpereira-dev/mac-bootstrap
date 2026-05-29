@@ -17,3 +17,4 @@ jobs:
       issues: write
       pull-requests: write
       security-events: write
+    secrets: inherit
