@@ -1,0 +1,18 @@
+# Auto-generated 2026-05-29: opt-in to code-scan's advisory security scanning.
+# https://github.com/mpereira-dev/code-scan — never blocks merges; findings file
+# rolling advisory issues, not CI failures.
+name: security
+on:
+  pull_request: {}
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 13 * * 1'  # weekly Monday 13:00 UTC
+
+jobs:
+  scan:
+    uses: mpereira-dev/code-scan/.github/workflows/scan.yml@main
+    permissions:
+      contents: read
+      issues: write
+      security-events: write
