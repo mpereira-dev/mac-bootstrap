@@ -4,7 +4,7 @@ import path from "node:path";
 import { formatCommand } from "./command-runner.js";
 import { brewPath, filterByProfiles, loadManifest } from "./manifest.js";
 import { checkNetwork } from "./network.js";
-import { pickProfiles } from "./prompt.js";
+import { pickProfiles, pickProfilesInteractive } from "./prompt.js";
 import { defaultProfiles, loadSelections, saveSelections, selectionsPath } from "./selections.js";
 
 export function bootstrapHelp() {
@@ -32,7 +32,8 @@ export async function bootstrap({
   runner,
   logger = console,
   networkCheck = checkNetwork,
-  prompt
+  prompt,
+  interactive = Boolean(process.stdin && process.stdin.isTTY)
 }) {
   const fullManifest = loadManifest(manifestPath);
   const saved = loadSelections(home);
@@ -47,7 +48,8 @@ export async function bootstrap({
     reconfigure,
     home,
     logger,
-    prompt
+    prompt,
+    interactive
   });
 
   const manifest = filterByProfiles(fullManifest, selectedProfiles);
@@ -116,7 +118,8 @@ async function resolveProfileSelection({
   reconfigure,
   home,
   logger,
-  prompt
+  prompt,
+  interactive
 }) {
   if (Array.isArray(profilesOverride) && profilesOverride.length > 0) {
     saveSelections(home, profilesOverride);
@@ -132,7 +135,16 @@ async function resolveProfileSelection({
     logger.log(`--yes: using ${saved ? "saved" : "default"} profiles without prompt: ${fallback.join(", ")}`);
     return fallback;
   }
-  const picked = await pickProfiles({ manifest: fullManifest, logger, defaults, prompt });
+
+  // Use the arrow-key TUI on a real terminal; fall back to per-profile yes/no
+  // when tests inject a `prompt` function or when stdin is not a TTY.
+  const promptDefaults = saved ? saved.profiles : defaults;
+  let picked;
+  if (typeof prompt === "function" || !interactive) {
+    picked = await pickProfiles({ manifest: fullManifest, logger, defaults: promptDefaults, prompt });
+  } else {
+    picked = await pickProfilesInteractive({ manifest: fullManifest, defaults: promptDefaults });
+  }
   const file = saveSelections(home, picked);
   logger.log(`Saved profile selection to ${file}`);
   return picked;

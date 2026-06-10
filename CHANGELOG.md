@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1] - 2026-06-10
+### Changed
+- `./bin/bootstrap` profile prompt is now an arrow-key TUI on a real terminal. `↑/↓` (or `j/k`) navigate, `space` toggles the highlighted row, `a` toggles all, `enter` confirms, `q` / `esc` / `ctrl-c` cancel. Replaces the previous "press Y four times" per-profile yes/no prompt.
+- Non-TTY contexts (CI, redirected stdin, tests injecting a `prompt`) automatically fall back to the per-profile yes/no flow so unattended runs keep working.
+
+### Notes
+- No behavior change for `--yes`, `--profiles=`, `--reconfigure`, or saved-selection runs. Idempotency unchanged — `ensureFormula` / `ensureCask` still skip already-installed packages.
+
 ## [0.2.0] - 2026-06-10
 ### Added
 - Profile system in packages.json: `core` / `node` / `ai` / `mobile` / `network`, each with a description and defaultEnabled flag. Every formula and cask now carries a `profile` field. Selection persists at ~/.mac-bootstrap/profiles.json.

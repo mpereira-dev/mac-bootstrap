@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import test from "node:test";
-import { askYesNo, pickProfiles } from "../src/prompt.js";
+import { askYesNo, pickProfiles, pickProfilesInteractive } from "../src/prompt.js";
 import { TestLogger } from "./helpers.js";
 
 async function answerYesNo(answer, defaultYes = true) {
@@ -67,4 +68,97 @@ test("pickProfiles iterates profiles with injected prompt", async () => {
   ]);
   assert.match(logger.text(), /gh/);
   assert.match(logger.text(), /claude-code/);
+});
+
+// Fake stdin that lets us emit synthetic keypress events without engaging the
+// real raw-mode terminal. The interactive picker only calls resume/pause/off
+// and listens on the "keypress" event, so this minimal stub is enough.
+function fakeTtyInput() {
+  const emitter = new EventEmitter();
+  emitter.isRaw = false;
+  emitter.isTTY = false;
+  emitter.setRawMode = () => {};
+  emitter.resume = () => {};
+  emitter.pause = () => {};
+  return emitter;
+}
+
+function silentOutput() {
+  return { write: () => {} };
+}
+
+test("pickProfilesInteractive returns defaults on enter", async () => {
+  const manifest = {
+    profiles: { core: {}, ai: {}, mobile: {} },
+    formulae: [],
+    casks: []
+  };
+  const input = fakeTtyInput();
+  const promise = pickProfilesInteractive({
+    manifest,
+    defaults: ["core", "ai"],
+    input,
+    output: silentOutput()
+  });
+  setImmediate(() => input.emit("keypress", "", { name: "return" }));
+  assert.deepEqual(await promise, ["core", "ai"]);
+});
+
+test("pickProfilesInteractive toggles selection with space", async () => {
+  const manifest = {
+    profiles: { core: {}, ai: {}, mobile: {} },
+    formulae: [],
+    casks: []
+  };
+  const input = fakeTtyInput();
+  const promise = pickProfilesInteractive({
+    manifest,
+    defaults: ["core"],
+    input,
+    output: silentOutput()
+  });
+  // Cursor starts on core (index 0). Down to ai (1), space to enable, then enter.
+  process.nextTick(() => {
+    input.emit("keypress", "", { name: "down" });
+    input.emit("keypress", "", { name: "space" });
+    input.emit("keypress", "", { name: "return" });
+  });
+  assert.deepEqual(await promise, ["core", "ai"]);
+});
+
+test("pickProfilesInteractive toggles all with a", async () => {
+  const manifest = {
+    profiles: { core: {}, ai: {}, mobile: {} },
+    formulae: [],
+    casks: []
+  };
+  const input = fakeTtyInput();
+  const promise = pickProfilesInteractive({
+    manifest,
+    defaults: [],
+    input,
+    output: silentOutput()
+  });
+  process.nextTick(() => {
+    input.emit("keypress", "", { name: "a" });
+    input.emit("keypress", "", { name: "return" });
+  });
+  assert.deepEqual(await promise, ["core", "ai", "mobile"]);
+});
+
+test("pickProfilesInteractive rejects on q", async () => {
+  const manifest = {
+    profiles: { core: {} },
+    formulae: [],
+    casks: []
+  };
+  const input = fakeTtyInput();
+  const promise = pickProfilesInteractive({
+    manifest,
+    defaults: ["core"],
+    input,
+    output: silentOutput()
+  });
+  process.nextTick(() => input.emit("keypress", "", { name: "q" }));
+  await assert.rejects(promise, /cancelled/i);
 });

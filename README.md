@@ -25,7 +25,9 @@ Packages are grouped by profiles in `packages.json`:
 - `mobile`: Flutter, Android Studio, and CocoaPods.
 - `network`: Tailscale.
 
-On a fresh laptop, `./bin/bootstrap` prompts once for the profiles to enable, saves the selection to `~/.mac-bootstrap/profiles.json`, and reuses it on later runs. `mobile` and `network` are off by default.
+On a fresh laptop, `./bin/bootstrap` opens an arrow-key picker for the profiles to enable, saves the selection to `~/.mac-bootstrap/profiles.json`, and reuses it on later runs. Controls: `↑/↓` (or `j/k`) navigate, `space` toggles the highlighted row, `a` toggles all, `enter` confirms, `q` / `esc` / `ctrl-c` cancel. `mobile` and `network` are off by default.
+
+In non-TTY contexts (CI, redirected stdin) the picker falls back to a per-profile yes/no prompt automatically.
 
 Non-interactive flags:
 
