@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 import { bootstrap, ensureFormula } from "../src/bootstrap.js";
 import { loadManifest } from "../src/manifest.js";
-import { FakeRunner, tempHome, TestLogger } from "./helpers.js";
+import { FakeRunner, tempHome, TestLogger, writeSavedSelections } from "./helpers.js";
+import { loadSelections, selectionsPath } from "../src/selections.js";
+
+const ALL_PROFILES = ["core", "node", "ai", "mobile", "network"];
 
 test("ensureFormula installs a missing formula", () => {
   const manifest = loadManifest();
@@ -24,7 +28,7 @@ test("bootstrap happy path installs formulae and casks", async () => {
   const home = tempHome();
   const runner = new FakeRunner({ xcodeInstalled: false });
   const logger = new TestLogger();
-  const exitCode = await bootstrap({ home, runner, logger, networkCheck: async () => true });
+  const exitCode = await bootstrap({ home, runner, logger, profiles: ALL_PROFILES, networkCheck: async () => true });
   assert.equal(exitCode, 0);
   assert.equal(runner.formulae.has("gh"), true);
   assert.equal(runner.casks.has("claude-code"), true);
@@ -35,7 +39,7 @@ test("bootstrap continues when one formula fails and returns failure", async () 
   const home = tempHome();
   const runner = new FakeRunner({ failInstall: new Set(["ripgrep"]) });
   const logger = new TestLogger();
-  const exitCode = await bootstrap({ home, runner, logger, networkCheck: async () => true });
+  const exitCode = await bootstrap({ home, runner, logger, profiles: ALL_PROFILES, networkCheck: async () => true });
   assert.equal(exitCode, 1);
   assert.equal(runner.formulae.has("git"), true);
   assert.equal(runner.formulae.has("jq"), true);
@@ -46,7 +50,7 @@ test("bootstrap returns 2 when network is unavailable", async () => {
   const home = tempHome();
   const runner = new FakeRunner();
   const logger = new TestLogger();
-  const exitCode = await bootstrap({ home, runner, logger, networkCheck: async () => false });
+  const exitCode = await bootstrap({ home, runner, logger, profiles: ALL_PROFILES, networkCheck: async () => false });
   assert.equal(exitCode, 2);
   assert.equal(runner.calls.length, 0);
 });
@@ -55,8 +59,88 @@ test("bootstrap dry-run prints actions and does nothing", async () => {
   const home = tempHome();
   const runner = new FakeRunner();
   const logger = new TestLogger();
-  const exitCode = await bootstrap({ dryRun: true, home, runner, logger, networkCheck: async () => false });
+  const exitCode = await bootstrap({ dryRun: true, home, runner, logger, profiles: ALL_PROFILES, networkCheck: async () => false });
   assert.equal(exitCode, 0);
   assert.match(logger.text(), /brew install gh if missing/);
   assert.equal(runner.calls.length, 0);
+});
+
+test("bootstrap with core profile installs only core packages", async () => {
+  const home = tempHome();
+  const runner = new FakeRunner();
+  const logger = new TestLogger();
+  const exitCode = await bootstrap({ home, runner, logger, profiles: ["core"], networkCheck: async () => true });
+  assert.equal(exitCode, 0);
+  assert.equal(runner.formulae.has("gh"), true);
+  assert.equal(runner.formulae.has("volta"), false);
+  assert.equal(runner.casks.has("claude-code"), false);
+});
+
+test("bootstrap prompts on first run and saves selected profiles", async () => {
+  const home = tempHome();
+  const runner = new FakeRunner();
+  const logger = new TestLogger();
+  const exitCode = await bootstrap({
+    home,
+    runner,
+    logger,
+    networkCheck: async () => true,
+    prompt: async () => true
+  });
+  assert.equal(exitCode, 0);
+  assert.deepEqual(loadSelections(home).profiles, ALL_PROFILES);
+  assert.equal(runner.formulae.has("gh"), true);
+  assert.equal(runner.formulae.has("cocoapods"), true);
+  assert.equal(runner.casks.has("tailscale-app"), true);
+});
+
+test("bootstrap respects saved selection without prompting", async () => {
+  const home = tempHome();
+  writeSavedSelections(home, ["core"]);
+  const runner = new FakeRunner();
+  const logger = new TestLogger();
+  const exitCode = await bootstrap({
+    home,
+    runner,
+    logger,
+    networkCheck: async () => true,
+    prompt: async () => {
+      throw new Error("prompt should not be called");
+    }
+  });
+  assert.equal(exitCode, 0);
+  assert.equal(runner.formulae.has("gh"), true);
+  assert.equal(runner.casks.has("claude-code"), false);
+});
+
+test("bootstrap reconfigure prompts even with saved selection", async () => {
+  const home = tempHome();
+  writeSavedSelections(home, ["core"]);
+  const runner = new FakeRunner();
+  const logger = new TestLogger();
+  const exitCode = await bootstrap({
+    home,
+    runner,
+    logger,
+    reconfigure: true,
+    networkCheck: async () => true,
+    prompt: async (question) => question.includes("ai")
+  });
+  assert.equal(exitCode, 0);
+  assert.deepEqual(loadSelections(home).profiles, ["ai"]);
+  assert.equal(runner.formulae.has("gh"), false);
+  assert.equal(runner.casks.has("claude-code"), true);
+});
+
+test("bootstrap yes uses defaults with no saved file", async () => {
+  const home = tempHome();
+  const runner = new FakeRunner();
+  const logger = new TestLogger();
+  const exitCode = await bootstrap({ home, runner, logger, yes: true, networkCheck: async () => true });
+  assert.equal(exitCode, 0);
+  assert.equal(runner.formulae.has("gh"), true);
+  assert.equal(runner.formulae.has("cocoapods"), false);
+  assert.equal(runner.casks.has("claude-code"), true);
+  assert.equal(runner.casks.has("tailscale-app"), false);
+  assert.equal(fs.existsSync(selectionsPath(home)), false);
 });

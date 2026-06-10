@@ -1,12 +1,15 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { brewPath, loadManifest, repoRoot } from "./manifest.js";
+import { brewPath, filterByProfiles, loadManifest, repoRoot } from "./manifest.js";
+import { defaultProfiles, loadSelections } from "./selections.js";
 
 export function doctorHelp() {
   return `Usage: ./bin/doctor [--dry-run] [--home PATH] [--packages PATH]
 
-Verifies the laptop matches the mac-bootstrap expected state.`;
+Verifies the laptop matches the mac-bootstrap expected state. Only checks
+profiles currently enabled (saved in ~/.mac-bootstrap/profiles.json, or
+the manifest defaults if no saved selection exists).`;
 }
 
 export async function doctor({
@@ -16,9 +19,13 @@ export async function doctor({
   runner,
   logger = console
 }) {
-  const manifest = loadManifest(manifestPath);
+  const fullManifest = loadManifest(manifestPath);
+  const saved = loadSelections(home);
+  const enabled = saved ? saved.profiles : defaultProfiles(fullManifest);
+  const manifest = filterByProfiles(fullManifest, enabled);
+
   if (dryRun) {
-    printDoctorPlan({ home, manifest, logger });
+    printDoctorPlan({ home, manifest, profiles: enabled, logger });
     return 0;
   }
 
@@ -39,19 +46,27 @@ export async function doctor({
       checks.push(checkCommand(runner, cask.command, ["--version"], `command ${cask.command}`));
     }
   }
-  checks.push(checkCommand(runner, "volta", ["which", "node"], "Volta Node"));
-  checks.push(checkCommand(runner, "node", ["--version"], "Node runtime", (stdout) => stdout.includes(`v${manifest.defaultNode}.`)));
+  if (enabled.includes("node")) {
+    checks.push(checkCommand(runner, "volta", ["which", "node"], "Volta Node"));
+    checks.push(checkCommand(runner, "node", ["--version"], "Node runtime", (stdout) => stdout.includes(`v${manifest.defaultNode}.`)));
+  }
 
   const failures = checks.filter((check) => !check.ok);
   for (const check of checks) {
     logger.log(`${check.ok ? "ok" : "fail"} - ${check.name}${check.detail ? ` (${check.detail})` : ""}`);
   }
+  if (saved) {
+    logger.log(`enabled profiles: ${enabled.join(", ")}`);
+  } else {
+    logger.log(`enabled profiles (defaults; no saved selection): ${enabled.join(", ")}`);
+  }
 
   return failures.length === 0 ? 0 : 1;
 }
 
-export function printDoctorPlan({ home, manifest, logger }) {
+export function printDoctorPlan({ home, manifest, profiles, logger }) {
   logger.log("[dry-run] doctor plan");
+  logger.log(`[dry-run] enabled profiles: ${profiles && profiles.length > 0 ? profiles.join(", ") : "(none)"}`);
   logger.log(`[dry-run] check directory ${path.join(home, "Library", "LaunchAgents")}`);
   logger.log(`[dry-run] check directory ${path.join(home, "Library", "Logs")}`);
   logger.log(`[dry-run] check launchd template`);
@@ -64,7 +79,9 @@ export function printDoctorPlan({ home, manifest, logger }) {
   for (const cask of manifest.casks) {
     logger.log(`[dry-run] check cask ${cask.name}`);
   }
-  logger.log(`[dry-run] check node v${manifest.defaultNode}`);
+  if (profiles && profiles.includes("node")) {
+    logger.log(`[dry-run] check node v${manifest.defaultNode}`);
+  }
 }
 
 function checkDirectory(directory) {

@@ -1,60 +1,114 @@
 {
   "homebrewPrefix": "/opt/homebrew",
   "defaultNode": "22",
+  "profiles": {
+    "core": {
+      "description": "Shell baseline used by every workflow.",
+      "defaultEnabled": true
+    },
+    "node": {
+      "description": "Node.js runtime + bun via Volta.",
+      "defaultEnabled": true
+    },
+    "ai": {
+      "description": "AI CLI providers (claude, codex, antigravity).",
+      "defaultEnabled": true
+    },
+    "mobile": {
+      "description": "Mobile development (Flutter, Android Studio, CocoaPods).",
+      "defaultEnabled": false
+    },
+    "network": {
+      "description": "Networking + remote access (Tailscale).",
+      "defaultEnabled": false
+    }
+  },
   "formulae": [
     {
       "name": "git",
+      "profile": "core",
       "why": "Source control baseline for all development."
     },
     {
       "name": "gh",
+      "profile": "core",
       "why": "GitHub CLI for repository and issue workflows."
     },
     {
       "name": "jq",
+      "profile": "core",
       "why": "JSON inspection and scripting."
     },
     {
       "name": "ripgrep",
+      "profile": "core",
       "why": "Fast repository search."
     },
     {
       "name": "coreutils",
+      "profile": "core",
       "why": "GNU-compatible shell utilities."
     },
     {
       "name": "tree",
+      "profile": "core",
       "why": "Quick filesystem inspection."
     },
     {
-      "name": "volta",
-      "why": "Pinned Node.js runtime management."
-    },
-    {
       "name": "python",
+      "profile": "core",
       "why": "General scripting and local tooling."
     },
     {
+      "name": "volta",
+      "profile": "node",
+      "why": "Pinned Node.js runtime management."
+    },
+    {
       "name": "oven-sh/bun/bun",
-      "why": "Installed intentionally on the source laptop for JavaScript tooling."
+      "profile": "node",
+      "why": "Fast JavaScript runtime + package manager."
+    },
+    {
+      "name": "cocoapods",
+      "profile": "mobile",
+      "why": "iOS dependency manager required by Flutter iOS builds."
     }
   ],
   "casks": [
     {
       "name": "claude-code",
+      "profile": "ai",
       "command": "claude",
       "selfUpdate": ["claude", "update"],
       "why": "Claude Code CLI."
     },
     {
       "name": "codex",
+      "profile": "ai",
       "command": "codex",
       "why": "OpenAI Codex CLI."
     },
     {
       "name": "antigravity-cli",
+      "profile": "ai",
       "command": "antigravity",
       "why": "Antigravity CLI."
+    },
+    {
+      "name": "android-studio",
+      "profile": "mobile",
+      "why": "Android IDE + SDK manager + bundled JDK used by Flutter and Gradle."
+    },
+    {
+      "name": "flutter",
+      "profile": "mobile",
+      "why": "Flutter SDK for cross-platform mobile development."
+    },
+    {
+      "name": "tailscale-app",
+      "profile": "network",
+      "why": "Mesh VPN providing private hostnames + HTTPS certs for laptop services."
     }
   ],
   "npmGlobals": []

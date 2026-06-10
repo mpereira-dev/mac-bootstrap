@@ -1,6 +1,9 @@
 export function parseArgs(argv) {
   const options = {
     dryRun: false,
+    yes: false,
+    reconfigure: false,
+    profiles: undefined,
     home: process.env.HOME,
     manifestPath: undefined
   };
@@ -9,6 +12,15 @@ export function parseArgs(argv) {
     const arg = argv[index];
     if (arg === "--dry-run") {
       options.dryRun = true;
+    } else if (arg === "--yes" || arg === "-y") {
+      options.yes = true;
+    } else if (arg === "--reconfigure") {
+      options.reconfigure = true;
+    } else if (arg === "--profiles") {
+      index += 1;
+      options.profiles = parseProfiles(requireValue(arg, argv[index]));
+    } else if (arg.startsWith("--profiles=")) {
+      options.profiles = parseProfiles(arg.slice("--profiles=".length));
     } else if (arg === "--home") {
       index += 1;
       options.home = requireValue(arg, argv[index]);
@@ -27,6 +39,13 @@ export function parseArgs(argv) {
   }
 
   return options;
+}
+
+function parseProfiles(value) {
+  return value
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
 }
 
 function requireValue(flag, value) {

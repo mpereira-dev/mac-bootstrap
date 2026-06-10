@@ -2,27 +2,58 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { formatCommand } from "./command-runner.js";
-import { brewPath, loadManifest } from "./manifest.js";
+import { brewPath, filterByProfiles, loadManifest } from "./manifest.js";
 import { checkNetwork } from "./network.js";
+import { pickProfiles } from "./prompt.js";
+import { defaultProfiles, loadSelections, saveSelections, selectionsPath } from "./selections.js";
 
 export function bootstrapHelp() {
-  return `Usage: ./bin/bootstrap [--dry-run] [--home PATH] [--packages PATH]
+  return `Usage: ./bin/bootstrap [--dry-run] [--yes] [--reconfigure] [--profiles=A,B] [--home PATH] [--packages PATH]
 
-Bootstraps a macOS development laptop from the curated package manifest.`;
+Bootstraps a macOS development laptop from the curated package manifest.
+
+Profile selection:
+  --profiles=A,B   Install exactly these profiles, no prompt. Saved.
+  --yes            Skip prompt, use saved selection (or defaults if none saved).
+  --reconfigure    Force the interactive prompt even if a saved selection exists.
+  (none)           Prompt the first time, reuse the saved selection thereafter.
+
+Profiles are defined in packages.json. Selections are saved to
+~/.mac-bootstrap/profiles.json.`;
 }
 
 export async function bootstrap({
   dryRun = false,
+  yes = false,
+  reconfigure = false,
+  profiles: profilesOverride,
   home = os.homedir(),
   manifestPath,
   runner,
   logger = console,
-  networkCheck = checkNetwork
+  networkCheck = checkNetwork,
+  prompt
 }) {
-  const manifest = loadManifest(manifestPath);
+  const fullManifest = loadManifest(manifestPath);
+  const saved = loadSelections(home);
+  const defaults = defaultProfiles(fullManifest);
+
+  const selectedProfiles = await resolveProfileSelection({
+    fullManifest,
+    saved,
+    defaults,
+    profilesOverride,
+    yes,
+    reconfigure,
+    home,
+    logger,
+    prompt
+  });
+
+  const manifest = filterByProfiles(fullManifest, selectedProfiles);
 
   if (dryRun) {
-    printBootstrapPlan({ home, manifest, logger });
+    printBootstrapPlan({ home, manifest, profiles: selectedProfiles, logger });
     return 0;
   }
 
@@ -55,9 +86,11 @@ export async function bootstrap({
     }
   }
 
-  const nodeResult = ensureVoltaNode(runner, manifest, logger);
-  if (!nodeResult.ok) {
-    failures.push(`node:${manifest.defaultNode}`);
+  if (selectedProfiles.includes("node")) {
+    const nodeResult = ensureVoltaNode(runner, manifest, logger);
+    if (!nodeResult.ok) {
+      failures.push(`node:${manifest.defaultNode}`);
+    }
   }
 
   if (failures.length > 0) {
@@ -69,8 +102,45 @@ export async function bootstrap({
   return 0;
 }
 
-export function printBootstrapPlan({ home, manifest, logger }) {
+// Decides which profiles to enable, in this priority:
+//   1. --profiles=A,B  (explicit override; saves it).
+//   2. saved selection on disk (unless --reconfigure).
+//   3. --yes with no saved file: falls back to defaults from manifest.
+//   4. otherwise prompt interactively and save the result.
+async function resolveProfileSelection({
+  fullManifest,
+  saved,
+  defaults,
+  profilesOverride,
+  yes,
+  reconfigure,
+  home,
+  logger,
+  prompt
+}) {
+  if (Array.isArray(profilesOverride) && profilesOverride.length > 0) {
+    saveSelections(home, profilesOverride);
+    logger.log(`Using --profiles override and saving: ${profilesOverride.join(", ")}`);
+    return profilesOverride;
+  }
+  if (saved && !reconfigure) {
+    logger.log(`Using saved profile selection: ${saved.profiles.join(", ")} (re-run with --reconfigure to change)`);
+    return saved.profiles;
+  }
+  if (yes) {
+    const fallback = saved ? saved.profiles : defaults;
+    logger.log(`--yes: using ${saved ? "saved" : "default"} profiles without prompt: ${fallback.join(", ")}`);
+    return fallback;
+  }
+  const picked = await pickProfiles({ manifest: fullManifest, logger, defaults, prompt });
+  const file = saveSelections(home, picked);
+  logger.log(`Saved profile selection to ${file}`);
+  return picked;
+}
+
+export function printBootstrapPlan({ home, manifest, profiles, logger }) {
   logger.log("[dry-run] bootstrap plan");
+  logger.log(`[dry-run] enabled profiles: ${profiles && profiles.length > 0 ? profiles.join(", ") : "(none)"}`);
   logger.log(`[dry-run] ensure directory ${path.join(home, "Library", "LaunchAgents")}`);
   logger.log(`[dry-run] ensure directory ${path.join(home, "Library", "Logs")}`);
   logger.log(`[dry-run] ensure minimal zsh config ${path.join(home, ".zshrc")}`);
@@ -83,7 +153,9 @@ export function printBootstrapPlan({ home, manifest, logger }) {
   for (const cask of manifest.casks) {
     logger.log(`[dry-run] brew install --cask ${cask.name} if missing`);
   }
-  logger.log(`[dry-run] volta install node@${manifest.defaultNode}`);
+  if (profiles && profiles.includes("node")) {
+    logger.log(`[dry-run] volta install node@${manifest.defaultNode}`);
+  }
 }
 
 function ensureDirectories(home, logger) {

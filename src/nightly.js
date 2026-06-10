@@ -1,9 +1,10 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { brewPath, loadManifest } from "./manifest.js";
+import { brewPath, filterByProfiles, loadManifest } from "./manifest.js";
 import { checkNetwork } from "./network.js";
 import { FileLogger } from "./logger.js";
+import { defaultProfiles, loadSelections } from "./selections.js";
 
 export function nightlyHelp() {
   return `Usage: ./bin/nightly [--dry-run] [--home PATH] [--packages PATH]
@@ -21,11 +22,14 @@ export async function nightly({
   networkCheck = checkNetwork,
   postDiscord = postDiscordSummary
 }) {
-  const manifest = loadManifest(manifestPath);
+  const fullManifest = loadManifest(manifestPath);
+  const saved = loadSelections(home);
+  const enabled = saved ? saved.profiles : defaultProfiles(fullManifest);
+  const manifest = filterByProfiles(fullManifest, enabled);
   const logPath = path.join(home, "Library", "Logs", "mac-bootstrap-nightly.log");
 
   if (dryRun) {
-    printNightlyPlan({ home, manifest, logger });
+    printNightlyPlan({ home, manifest, profiles: enabled, logger });
     return 0;
   }
 
@@ -67,8 +71,9 @@ export async function nightly({
   return failures.length === 0 ? 0 : 1;
 }
 
-export function printNightlyPlan({ home, manifest, logger }) {
+export function printNightlyPlan({ home, manifest, profiles, logger }) {
   logger.log("[dry-run] nightly plan");
+  logger.log(`[dry-run] enabled profiles: ${profiles && profiles.length > 0 ? profiles.join(", ") : "(none)"}`);
   logger.log(`[dry-run] rotate ${path.join(home, "Library", "Logs", "mac-bootstrap-nightly.log")} with 7-day retention`);
   logger.log("[dry-run] capture before versions");
   logger.log("[dry-run] brew update");

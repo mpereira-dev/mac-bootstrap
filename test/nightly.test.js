@@ -3,10 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { nightly, rotateLogs } from "../src/nightly.js";
-import { FakeRunner, tempHome, TestLogger } from "./helpers.js";
+import { FakeRunner, tempHome, TestLogger, writeSavedSelections } from "./helpers.js";
 
 test("nightly happy path runs maintenance and logs summary", async () => {
   const home = tempHome();
+  writeSavedSelections(home, ["core", "node", "ai"]);
   const runner = new FakeRunner({ formulae: ["git"], casks: ["claude-code"] });
   const logger = new TestLogger();
   let discordPosted = false;
@@ -27,6 +28,7 @@ test("nightly happy path runs maintenance and logs summary", async () => {
 
 test("nightly returns 2 when network is unavailable", async () => {
   const home = tempHome();
+  writeSavedSelections(home, ["core", "node", "ai"]);
   const runner = new FakeRunner();
   const logger = new TestLogger();
   const exitCode = await nightly({ home, runner, logger, networkCheck: async () => false });
@@ -36,6 +38,7 @@ test("nightly returns 2 when network is unavailable", async () => {
 
 test("nightly reports command failure", async () => {
   const home = tempHome();
+  writeSavedSelections(home, ["core", "node", "ai"]);
   const failSteps = new Map([["/opt/homebrew/bin/brew upgrade", "network dropped"]]);
   const runner = new FakeRunner({ failSteps });
   const logger = new TestLogger();
@@ -46,12 +49,23 @@ test("nightly reports command failure", async () => {
 
 test("nightly dry-run prints actions and does nothing", async () => {
   const home = tempHome();
+  writeSavedSelections(home, ["core", "node", "ai"]);
   const runner = new FakeRunner();
   const logger = new TestLogger();
   const exitCode = await nightly({ dryRun: true, home, runner, logger, networkCheck: async () => false });
   assert.equal(exitCode, 0);
   assert.match(logger.text(), /brew upgrade --cask/);
   assert.equal(runner.calls.length, 0);
+});
+
+test("nightly skips self-update for disabled casks", async () => {
+  const home = tempHome();
+  writeSavedSelections(home, ["core"]);
+  const runner = new FakeRunner({ casks: ["claude-code"] });
+  const logger = new TestLogger();
+  const exitCode = await nightly({ home, runner, logger, networkCheck: async () => true, env: {} });
+  assert.equal(exitCode, 0);
+  assert.equal(runner.calls.some((call) => call.join(" ") === "claude update"), false);
 });
 
 test("rotateLogs keeps recent logs and removes stale logs", () => {

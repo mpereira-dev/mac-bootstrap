@@ -6,6 +6,14 @@ export function tempHome() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "mac-bootstrap-home-"));
 }
 
+export function writeSavedSelections(home, profiles) {
+  const directory = path.join(home, ".mac-bootstrap");
+  fs.mkdirSync(directory, { recursive: true });
+  const file = path.join(directory, "profiles.json");
+  fs.writeFileSync(file, `${JSON.stringify({ profiles, savedAt: "2026-06-10T00:00:00.000Z" }, null, 2)}\n`);
+  return file;
+}
+
 export class FakeRunner {
   constructor({
     formulae = [],
