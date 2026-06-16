@@ -5,27 +5,13 @@ import { formatCommand } from "./command-runner.js";
 import { brewPath, filterByProfiles, loadManifest } from "./manifest.js";
 import { checkNetwork } from "./network.js";
 import { pickProfiles, pickProfilesInteractive } from "./prompt.js";
-import { defaultProfiles, loadSelections, saveSelections, selectionsPath } from "./selections.js";
-
-export function bootstrapHelp() {
-  return `Usage: ./bin/bootstrap [--dry-run] [--yes] [--reconfigure] [--profiles=A,B] [--home PATH] [--packages PATH]
-
-Bootstraps a macOS development laptop from the curated package manifest.
-
-Profile selection:
-  --profiles=A,B   Install exactly these profiles, no prompt. Saved.
-  --yes            Skip prompt, use saved selection (or defaults if none saved).
-  --reconfigure    Force the interactive prompt even if a saved selection exists.
-  (none)           Prompt the first time, reuse the saved selection thereafter.
-
-Profiles are defined in packages.json. Selections are saved to
-~/.mac-bootstrap/profiles.json.`;
-}
+import { defaultProfiles, loadSelections, profileNamesToShow, saveSelections } from "./selections.js";
 
 export async function bootstrap({
   dryRun = false,
   yes = false,
   reconfigure = false,
+  allProfiles = false,
   profiles: profilesOverride,
   home = os.homedir(),
   manifestPath,
@@ -46,6 +32,7 @@ export async function bootstrap({
     profilesOverride,
     yes,
     reconfigure,
+    allProfiles,
     home,
     logger,
     prompt,
@@ -93,6 +80,9 @@ export async function bootstrap({
     if (!nodeResult.ok) {
       failures.push(`node:${manifest.defaultNode}`);
     }
+    if (!ensureCorepack(runner, logger).ok) {
+      failures.push("corepack");
+    }
   }
 
   if (failures.length > 0) {
@@ -116,6 +106,7 @@ async function resolveProfileSelection({
   profilesOverride,
   yes,
   reconfigure,
+  allProfiles,
   home,
   logger,
   prompt,
@@ -137,13 +128,16 @@ async function resolveProfileSelection({
   }
 
   // Use the arrow-key TUI on a real terminal; fall back to per-profile yes/no
-  // when tests inject a `prompt` function or when stdin is not a TTY.
+  // when tests inject a `prompt` function or when stdin is not a TTY. Hidden
+  // profiles (ai/mobile/network) are off the menu unless --all-profiles is set,
+  // but any already-enabled hidden profile stays visible so it is never dropped.
   const promptDefaults = saved ? saved.profiles : defaults;
+  const names = profileNamesToShow(fullManifest, { all: allProfiles, include: promptDefaults });
   let picked;
   if (typeof prompt === "function" || !interactive) {
-    picked = await pickProfiles({ manifest: fullManifest, logger, defaults: promptDefaults, prompt });
+    picked = await pickProfiles({ manifest: fullManifest, logger, defaults: promptDefaults, names, prompt });
   } else {
-    picked = await pickProfilesInteractive({ manifest: fullManifest, defaults: promptDefaults });
+    picked = await pickProfilesInteractive({ manifest: fullManifest, defaults: promptDefaults, names });
   }
   const file = saveSelections(home, picked);
   logger.log(`Saved profile selection to ${file}`);
@@ -167,6 +161,7 @@ export function printBootstrapPlan({ home, manifest, profiles, logger }) {
   }
   if (profiles && profiles.includes("node")) {
     logger.log(`[dry-run] volta install node@${manifest.defaultNode}`);
+    logger.log(`[dry-run] corepack enable (per-project pnpm/yarn via packageManager field)`);
   }
 }
 
@@ -290,5 +285,18 @@ function ensureVoltaNode(runner, manifest, logger) {
     return { ok: false };
   }
   logger.log(`Ensured Node ${manifest.defaultNode} via Volta.`);
+  return { ok: true };
+}
+
+// Corepack ships with Node and provisions the exact pnpm/yarn version each
+// project pins in its package.json "packageManager" field. mac-bootstrap only
+// turns it on; per-project versions live in the projects, not on the machine.
+function ensureCorepack(runner, logger) {
+  const result = runner.run("corepack", ["enable"]);
+  if (result.status !== 0) {
+    logger.error(`Failed to enable Corepack: ${result.stderr}`);
+    return { ok: false };
+  }
+  logger.log("Enabled Corepack (per-project pnpm/yarn via packageManager field).");
   return { ok: true };
 }

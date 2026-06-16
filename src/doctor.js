@@ -4,14 +4,6 @@ import path from "node:path";
 import { brewPath, filterByProfiles, loadManifest, repoRoot } from "./manifest.js";
 import { defaultProfiles, loadSelections } from "./selections.js";
 
-export function doctorHelp() {
-  return `Usage: ./bin/doctor [--dry-run] [--home PATH] [--packages PATH]
-
-Verifies the laptop matches the mac-bootstrap expected state. Only checks
-profiles currently enabled (saved in ~/.mac-bootstrap/profiles.json, or
-the manifest defaults if no saved selection exists).`;
-}
-
 export async function doctor({
   dryRun = false,
   home = os.homedir(),
@@ -49,6 +41,7 @@ export async function doctor({
   if (enabled.includes("node")) {
     checks.push(checkCommand(runner, "volta", ["which", "node"], "Volta Node"));
     checks.push(checkCommand(runner, "node", ["--version"], "Node runtime", (stdout) => stdout.includes(`v${manifest.defaultNode}.`)));
+    checks.push(checkCommand(runner, "corepack", ["--version"], "Corepack"));
   }
 
   const failures = checks.filter((check) => !check.ok);
@@ -81,6 +74,7 @@ export function printDoctorPlan({ home, manifest, profiles, logger }) {
   }
   if (profiles && profiles.includes("node")) {
     logger.log(`[dry-run] check node v${manifest.defaultNode}`);
+    logger.log(`[dry-run] check corepack`);
   }
 }
 

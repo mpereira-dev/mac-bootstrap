@@ -6,12 +6,6 @@ import { checkNetwork } from "./network.js";
 import { FileLogger } from "./logger.js";
 import { defaultProfiles, loadSelections } from "./selections.js";
 
-export function nightlyHelp() {
-  return `Usage: ./bin/nightly [--dry-run] [--home PATH] [--packages PATH]
-
-Runs unattended Homebrew, self-update, and npm-global maintenance.`;
-}
-
 export async function nightly({
   dryRun = false,
   home = os.homedir(),

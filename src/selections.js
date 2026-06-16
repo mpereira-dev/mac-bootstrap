@@ -38,3 +38,23 @@ export function defaultProfiles(manifest) {
     .filter(([, def]) => def && def.defaultEnabled)
     .map(([name]) => name);
 }
+
+export function hiddenProfiles(manifest) {
+  return Object.entries(manifest.profiles || {})
+    .filter(([, def]) => def && def.hidden)
+    .map(([name]) => name);
+}
+
+// The profile names the interactive picker should offer. By default hidden
+// profiles (ai/mobile/network) are omitted to keep the common path short; pass
+// `all` to reveal every profile. Names in `include` are always shown so a
+// reconfigure never silently drops a hidden profile that is already enabled.
+export function profileNamesToShow(manifest, { all = false, include = [] } = {}) {
+  const everyName = Object.keys(manifest.profiles || {});
+  if (all) {
+    return everyName;
+  }
+  const hidden = new Set(hiddenProfiles(manifest));
+  const keep = new Set(include);
+  return everyName.filter((name) => !hidden.has(name) || keep.has(name));
+}

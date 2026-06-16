@@ -33,6 +33,7 @@ export class FakeRunner {
       antigravity: "1.0.0",
       volta: "2.0.0",
       npm: "10.9.8",
+      corepack: "0.34.0",
       ...commands
     };
     this.failInstall = failInstall;
@@ -65,6 +66,10 @@ export class FakeRunner {
       return { status: 0, stdout: "", stderr: "" };
     }
 
+    if (command === "corepack" && args[0] === "enable") {
+      return { status: 0, stdout: "", stderr: "" };
+    }
+
     if (command.endsWith("/brew")) {
       return this.runBrew(args);
     }
@@ -86,6 +91,9 @@ export class FakeRunner {
       return { status: 0, stdout: `${this.commands.npm}\n`, stderr: "" };
     }
     if (command === "npm" && args[0] === "install" && args[1] === "--global") {
+      return { status: 0, stdout: "", stderr: "" };
+    }
+    if (command === "npm" && args[0] === "uninstall" && (args[1] === "-g" || args[1] === "--global")) {
       return { status: 0, stdout: "", stderr: "" };
     }
     if (args[0] === "--version" && this.commands[command]) {

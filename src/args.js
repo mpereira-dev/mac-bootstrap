@@ -3,6 +3,7 @@ export function parseArgs(argv) {
     dryRun: false,
     yes: false,
     reconfigure: false,
+    allProfiles: false,
     profiles: undefined,
     home: process.env.HOME,
     manifestPath: undefined
@@ -16,6 +17,8 @@ export function parseArgs(argv) {
       options.yes = true;
     } else if (arg === "--reconfigure") {
       options.reconfigure = true;
+    } else if (arg === "--all-profiles") {
+      options.allProfiles = true;
     } else if (arg === "--profiles") {
       index += 1;
       options.profiles = parseProfiles(requireValue(arg, argv[index]));

@@ -6,7 +6,7 @@ import { loadManifest } from "../src/manifest.js";
 import { FakeRunner, tempHome, TestLogger, writeSavedSelections } from "./helpers.js";
 import { loadSelections, selectionsPath } from "../src/selections.js";
 
-const ALL_PROFILES = ["core", "node", "ai", "mobile", "network"];
+const ALL_PROFILES = ["core", "node", "ai", "mobile", "network", "cloud"];
 
 test("ensureFormula installs a missing formula", () => {
   const manifest = loadManifest();
@@ -76,10 +76,12 @@ test("bootstrap with core profile installs only core packages", async () => {
   assert.equal(runner.casks.has("claude-code"), false);
 });
 
-test("bootstrap prompts on first run and saves selected profiles", async () => {
+test("bootstrap prompts on first run and offers only visible profiles", async () => {
   const home = tempHome();
   const runner = new FakeRunner();
   const logger = new TestLogger();
+  // prompt: () => true accepts every profile it is OFFERED. Hidden profiles
+  // (ai/mobile/network) are not offered without --all-profiles, so they stay off.
   const exitCode = await bootstrap({
     home,
     runner,
@@ -88,10 +90,31 @@ test("bootstrap prompts on first run and saves selected profiles", async () => {
     prompt: async () => true
   });
   assert.equal(exitCode, 0);
-  assert.deepEqual(loadSelections(home).profiles, ALL_PROFILES);
+  assert.deepEqual(loadSelections(home).profiles, ["core", "node", "cloud"]);
   assert.equal(runner.formulae.has("gh"), true);
+  assert.equal(runner.formulae.has("awscli"), true);
+  assert.equal(runner.casks.has("claude-code"), false);
+  assert.equal(runner.formulae.has("cocoapods"), false);
+  assert.equal(runner.casks.has("tailscale-app"), false);
+});
+
+test("bootstrap --all-profiles reveals hidden profiles in the picker", async () => {
+  const home = tempHome();
+  const runner = new FakeRunner();
+  const logger = new TestLogger();
+  const exitCode = await bootstrap({
+    home,
+    runner,
+    logger,
+    allProfiles: true,
+    networkCheck: async () => true,
+    prompt: async () => true
+  });
+  assert.equal(exitCode, 0);
+  assert.deepEqual(loadSelections(home).profiles, ALL_PROFILES);
   assert.equal(runner.formulae.has("cocoapods"), true);
   assert.equal(runner.casks.has("tailscale-app"), true);
+  assert.equal(runner.casks.has("claude-code"), true);
 });
 
 test("bootstrap respects saved selection without prompting", async () => {
@@ -123,6 +146,7 @@ test("bootstrap reconfigure prompts even with saved selection", async () => {
     runner,
     logger,
     reconfigure: true,
+    allProfiles: true,
     networkCheck: async () => true,
     prompt: async (question) => question.includes("ai")
   });
@@ -140,7 +164,8 @@ test("bootstrap yes uses defaults with no saved file", async () => {
   assert.equal(exitCode, 0);
   assert.equal(runner.formulae.has("gh"), true);
   assert.equal(runner.formulae.has("cocoapods"), false);
-  assert.equal(runner.casks.has("claude-code"), true);
+  // ai is no longer a default profile, so claude-code is not installed by --yes.
+  assert.equal(runner.casks.has("claude-code"), false);
   assert.equal(runner.casks.has("tailscale-app"), false);
   assert.equal(fs.existsSync(selectionsPath(home)), false);
 });

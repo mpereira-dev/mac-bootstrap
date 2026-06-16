@@ -12,14 +12,21 @@
     },
     "ai": {
       "description": "AI CLI providers (claude, codex, antigravity).",
-      "defaultEnabled": true
+      "defaultEnabled": false,
+      "hidden": true
     },
     "mobile": {
       "description": "Mobile development (Flutter, Android Studio, CocoaPods).",
-      "defaultEnabled": false
+      "defaultEnabled": false,
+      "hidden": true
     },
     "network": {
       "description": "Networking + remote access (Tailscale).",
+      "defaultEnabled": false,
+      "hidden": true
+    },
+    "cloud": {
+      "description": "Cloud tooling (AWS CLI + CDK).",
       "defaultEnabled": false
     }
   },
@@ -73,6 +80,18 @@
       "name": "cocoapods",
       "profile": "mobile",
       "why": "iOS dependency manager required by Flutter iOS builds."
+    },
+    {
+      "name": "awscli",
+      "profile": "cloud",
+      "command": "aws",
+      "why": "AWS CLI v2. Homebrew formula; replaces the standalone macOS .pkg install."
+    },
+    {
+      "name": "aws-cdk",
+      "profile": "cloud",
+      "command": "cdk",
+      "why": "AWS CDK toolkit. Homebrew formula; replaces an ad-hoc global npm install of aws-cdk."
     }
   ],
   "casks": [

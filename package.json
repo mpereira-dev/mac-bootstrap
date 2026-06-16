@@ -7,7 +7,8 @@
   "bin": {
     "mac-bootstrap": "./bin/bootstrap",
     "mac-bootstrap-nightly": "./bin/nightly",
-    "mac-bootstrap-doctor": "./bin/doctor"
+    "mac-bootstrap-doctor": "./bin/doctor",
+    "mac-bootstrap-migrate": "./bin/migrate"
   },
   "scripts": {
     "test": "node --test --experimental-test-coverage",
