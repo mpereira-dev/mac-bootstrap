@@ -2,7 +2,6 @@ import os from "node:os";
 import path from "node:path";
 import { formatCommand } from "./command-runner.js";
 import { brewPath, loadManifest, repoRoot } from "./manifest.js";
-import { askYesNo } from "./prompt.js";
 
 // Returns the bin leaf of a possibly-tap-qualified formula name
 // ("oven-sh/bun/bun" -> "bun").
@@ -77,20 +76,14 @@ async function defaultReadProvenance({ runner, manifestPath, tools }) {
   }
 }
 
-async function defaultConfirm(question) {
-  return askYesNo(question, false);
-}
-
 export async function migrate({
   apply = false,
-  yes = false,
   tools,
   home = os.homedir(),
   manifestPath,
   runner,
   logger = console,
-  readProvenance = defaultReadProvenance,
-  confirm = defaultConfirm
+  readProvenance = defaultReadProvenance
 }) {
   const manifest = loadManifest(manifestPath);
   const records = await readProvenance({ runner, manifestPath, tools, home });
@@ -140,12 +133,6 @@ export async function migrate({
 
     if (!plan.removable) {
       logger.log(`  manual removal needed: ${plan.removeDisplay}`);
-      continue;
-    }
-
-    const proceed = yes || (await confirm(`  remove old ${plan.name} via "${plan.removeDisplay}"?`));
-    if (!proceed) {
-      logger.log(`  left old ${plan.name} in place (removal skipped).`);
       continue;
     }
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { printHelp, renderProfileTable, renderTable } from "../src/help.js";
 import { loadManifest } from "../src/manifest.js";
-import { profileNamesToShow } from "../src/selections.js";
+import { resolvePreset } from "../src/selections.js";
 import { TestLogger } from "./helpers.js";
 
 test("renderTable aligns columns with a box border", () => {
@@ -15,12 +15,12 @@ test("renderTable aligns columns with a box border", () => {
   assert.equal(widths.size, 1);
 });
 
-test("renderProfileTable lists every profile with default + picker state", () => {
+test("renderProfileTable lists every profile with its default state", () => {
   const table = renderProfileTable(loadManifest());
   assert.match(table, /Profile/);
-  assert.match(table, /core .* on .* shown/);
-  assert.match(table, /ai .* off .* hidden/);
-  assert.match(table, /cloud .* off .* shown/);
+  assert.match(table, /core .* on/);
+  assert.match(table, /python .* on/);
+  assert.match(table, /ai .* off/);
   assert.match(table, /aws-cdk/);
 });
 
@@ -39,15 +39,15 @@ test("printHelp walks into a nested topic and renders the table", () => {
   assert.equal(code, 0);
   assert.match(logger.text(), /bootstrap › profiles/);
   assert.match(logger.text(), /┌/); // the table
-  assert.match(logger.text(), /hidden/); // subtopic listed
+  assert.match(logger.text(), /selection/); // subtopic listed
 });
 
 test("printHelp reaches a deeply nested topic", () => {
   const logger = new TestLogger();
-  const code = printHelp("bootstrap", ["profiles", "hidden"], { logger });
+  const code = printHelp("bootstrap", ["profiles", "selection"], { logger });
   assert.equal(code, 0);
-  assert.match(logger.text(), /bootstrap › profiles › hidden/);
-  assert.match(logger.text(), /--all-profiles/);
+  assert.match(logger.text(), /bootstrap › profiles › selection/);
+  assert.match(logger.text(), /--preset/);
 });
 
 test("printHelp reports an unknown topic with the available ones", () => {
@@ -69,22 +69,25 @@ test("migrate help explains detection and removal", () => {
   assert.match(removal.text(), /install the managed version first/);
 });
 
-test("profileNamesToShow hides ai/mobile/network unless all or included", () => {
+test("printHelp renders the preset table", () => {
+  const logger = new TestLogger();
+  const code = printHelp("bootstrap", ["presets"], { logger });
+  assert.equal(code, 0);
+  assert.match(logger.text(), /Preset/);
+  assert.match(logger.text(), /ranger .* core, node, python, cloud/);
+});
+
+test("resolvePreset maps codenames to profiles and rejects unknowns", () => {
   const manifest = loadManifest();
-  assert.deepEqual(profileNamesToShow(manifest), ["core", "node", "cloud"]);
-  assert.deepEqual(profileNamesToShow(manifest, { all: true }), [
+  assert.deepEqual(resolvePreset(manifest, "scout"), ["core", "node", "python"]);
+  assert.deepEqual(resolvePreset(manifest, "maverick"), [
     "core",
     "node",
+    "python",
     "ai",
     "mobile",
     "network",
     "cloud"
   ]);
-  // an already-enabled hidden profile stays visible so reconfigure never drops it
-  assert.deepEqual(profileNamesToShow(manifest, { include: ["mobile"] }), [
-    "core",
-    "node",
-    "mobile",
-    "cloud"
-  ]);
+  assert.equal(resolvePreset(manifest, "nope"), null);
 });

@@ -6,7 +6,7 @@ import { loadManifest } from "../src/manifest.js";
 import { FakeRunner, tempHome, TestLogger, writeSavedSelections } from "./helpers.js";
 import { loadSelections, selectionsPath } from "../src/selections.js";
 
-const ALL_PROFILES = ["core", "node", "ai", "mobile", "network", "cloud"];
+const ALL_PROFILES = ["core", "node", "python", "ai", "mobile", "network", "cloud"];
 
 test("ensureFormula installs a missing formula", () => {
   const manifest = loadManifest();
@@ -76,45 +76,47 @@ test("bootstrap with core profile installs only core packages", async () => {
   assert.equal(runner.casks.has("claude-code"), false);
 });
 
-test("bootstrap prompts on first run and offers only visible profiles", async () => {
+test("bootstrap prompts on first run and saves every accepted profile", async () => {
   const home = tempHome();
   const runner = new FakeRunner();
   const logger = new TestLogger();
-  // prompt: () => true accepts every profile it is OFFERED. Hidden profiles
-  // (ai/mobile/network) are not offered without --all-profiles, so they stay off.
+  // Every profile is offered now (no hide feature); prompt: () => true accepts all.
   const exitCode = await bootstrap({
     home,
     runner,
     logger,
-    networkCheck: async () => true,
-    prompt: async () => true
-  });
-  assert.equal(exitCode, 0);
-  assert.deepEqual(loadSelections(home).profiles, ["core", "node", "cloud"]);
-  assert.equal(runner.formulae.has("gh"), true);
-  assert.equal(runner.formulae.has("awscli"), true);
-  assert.equal(runner.casks.has("claude-code"), false);
-  assert.equal(runner.formulae.has("cocoapods"), false);
-  assert.equal(runner.casks.has("tailscale-app"), false);
-});
-
-test("bootstrap --all-profiles reveals hidden profiles in the picker", async () => {
-  const home = tempHome();
-  const runner = new FakeRunner();
-  const logger = new TestLogger();
-  const exitCode = await bootstrap({
-    home,
-    runner,
-    logger,
-    allProfiles: true,
     networkCheck: async () => true,
     prompt: async () => true
   });
   assert.equal(exitCode, 0);
   assert.deepEqual(loadSelections(home).profiles, ALL_PROFILES);
+  assert.equal(runner.formulae.has("gh"), true);
+  assert.equal(runner.formulae.has("uv"), true);
   assert.equal(runner.formulae.has("cocoapods"), true);
   assert.equal(runner.casks.has("tailscale-app"), true);
   assert.equal(runner.casks.has("claude-code"), true);
+});
+
+test("bootstrap --preset expands a codename to its profiles and saves it", async () => {
+  const home = tempHome();
+  const runner = new FakeRunner();
+  const logger = new TestLogger();
+  const exitCode = await bootstrap({ home, runner, logger, preset: "ranger", networkCheck: async () => true });
+  assert.equal(exitCode, 0);
+  assert.deepEqual(loadSelections(home).profiles, ["core", "node", "python", "cloud"]);
+  assert.equal(runner.formulae.has("awscli"), true); // cloud
+  assert.equal(runner.formulae.has("uv"), true); // python
+  assert.equal(runner.casks.has("claude-code"), false); // ai not in ranger
+  assert.equal(runner.formulae.has("cocoapods"), false); // mobile not in ranger
+});
+
+test("bootstrap rejects an unknown preset", async () => {
+  const home = tempHome();
+  const runner = new FakeRunner();
+  const logger = new TestLogger();
+  const exitCode = await bootstrap({ home, runner, logger, preset: "bogus", networkCheck: async () => true });
+  assert.equal(exitCode, 2);
+  assert.match(logger.text(), /Unknown preset: bogus/);
 });
 
 test("bootstrap respects saved selection without prompting", async () => {
@@ -146,7 +148,6 @@ test("bootstrap reconfigure prompts even with saved selection", async () => {
     runner,
     logger,
     reconfigure: true,
-    allProfiles: true,
     networkCheck: async () => true,
     prompt: async (question) => question.includes("ai")
   });
@@ -163,8 +164,10 @@ test("bootstrap yes uses defaults with no saved file", async () => {
   const exitCode = await bootstrap({ home, runner, logger, yes: true, networkCheck: async () => true });
   assert.equal(exitCode, 0);
   assert.equal(runner.formulae.has("gh"), true);
+  // python is a default profile now, so uv is installed by --yes.
+  assert.equal(runner.formulae.has("uv"), true);
   assert.equal(runner.formulae.has("cocoapods"), false);
-  // ai is no longer a default profile, so claude-code is not installed by --yes.
+  // ai is not a default profile, so claude-code is not installed by --yes.
   assert.equal(runner.casks.has("claude-code"), false);
   assert.equal(runner.casks.has("tailscale-app"), false);
   assert.equal(fs.existsSync(selectionsPath(home)), false);

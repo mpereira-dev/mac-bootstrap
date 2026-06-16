@@ -34,6 +34,8 @@ export class FakeRunner {
       volta: "2.0.0",
       npm: "10.9.8",
       corepack: "0.34.0",
+      uv: "0.5.0",
+      poetry: "1.8.0",
       ...commands
     };
     this.failInstall = failInstall;
@@ -67,6 +69,10 @@ export class FakeRunner {
     }
 
     if (command === "corepack" && args[0] === "enable") {
+      return { status: 0, stdout: "", stderr: "" };
+    }
+
+    if (command === "uv" && args[0] === "python" && args[1] === "install") {
       return { status: 0, stdout: "", stderr: "" };
     }
 

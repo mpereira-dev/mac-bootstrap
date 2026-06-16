@@ -4,7 +4,7 @@ import { bootstrap } from "../src/bootstrap.js";
 import { doctor } from "../src/doctor.js";
 import { FakeRunner, tempHome, TestLogger } from "../test/helpers.js";
 
-const ALL_PROFILES = ["core", "node", "ai", "mobile", "network", "cloud"];
+const ALL_PROFILES = ["core", "node", "python", "ai", "mobile", "network", "cloud"];
 
 test("bootstrap into isolated HOME then doctor passes", async () => {
   const home = tempHome();

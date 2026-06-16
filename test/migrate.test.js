@@ -87,7 +87,6 @@ test("migrate --apply installs managed then removes a runnable old copy", async 
   const logger = new TestLogger();
   const code = await migrate({
     apply: true,
-    yes: true,
     runner,
     logger,
     readProvenance: fakeProvenance([npmRecord])
@@ -108,7 +107,6 @@ test("migrate --apply leaves manual-removal tools for the user", async () => {
   const logger = new TestLogger();
   const code = await migrate({
     apply: true,
-    yes: true,
     runner,
     logger,
     readProvenance: fakeProvenance([awsRecord])
@@ -125,7 +123,6 @@ test("migrate --apply keeps the old copy when install fails", async () => {
   const logger = new TestLogger();
   const code = await migrate({
     apply: true,
-    yes: true,
     runner,
     logger,
     readProvenance: fakeProvenance([npmRecord])
@@ -134,21 +131,4 @@ test("migrate --apply keeps the old copy when install fails", async () => {
   const calls = runner.calls.map((c) => c.join(" "));
   assert.ok(!calls.includes("npm uninstall -g aws"), "old copy NOT removed after failed install");
   assert.match(logger.text(), /install failed/);
-});
-
-test("migrate --apply respects a declined confirmation", async () => {
-  const runner = new FakeRunner();
-  const logger = new TestLogger();
-  const code = await migrate({
-    apply: true,
-    runner,
-    logger,
-    confirm: async () => false,
-    readProvenance: fakeProvenance([npmRecord])
-  });
-  assert.equal(code, 0);
-  const calls = runner.calls.map((c) => c.join(" "));
-  assert.ok(calls.includes("/opt/homebrew/bin/brew install awscli"), "managed install ran");
-  assert.ok(!calls.includes("npm uninstall -g aws"), "removal skipped on decline");
-  assert.match(logger.text(), /removal skipped/);
 });

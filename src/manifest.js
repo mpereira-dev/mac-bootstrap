@@ -11,6 +11,7 @@ export function loadManifest(manifestPath = path.join(repoRoot(), "packages.json
   return {
     homebrewPrefix: "/opt/homebrew",
     defaultNode: "22",
+    defaultPython: "3.12",
     formulae: [],
     casks: [],
     npmGlobals: [],

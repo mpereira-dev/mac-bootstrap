@@ -43,6 +43,10 @@ export async function doctor({
     checks.push(checkCommand(runner, "node", ["--version"], "Node runtime", (stdout) => stdout.includes(`v${manifest.defaultNode}.`)));
     checks.push(checkCommand(runner, "corepack", ["--version"], "Corepack"));
   }
+  if (enabled.includes("python")) {
+    checks.push(checkCommand(runner, "uv", ["--version"], "uv"));
+    checks.push(checkCommand(runner, "poetry", ["--version"], "Poetry"));
+  }
 
   const failures = checks.filter((check) => !check.ok);
   for (const check of checks) {
@@ -75,6 +79,9 @@ export function printDoctorPlan({ home, manifest, profiles, logger }) {
   if (profiles && profiles.includes("node")) {
     logger.log(`[dry-run] check node v${manifest.defaultNode}`);
     logger.log(`[dry-run] check corepack`);
+  }
+  if (profiles && profiles.includes("python")) {
+    logger.log(`[dry-run] check uv + poetry`);
   }
 }
 

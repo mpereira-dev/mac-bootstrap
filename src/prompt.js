@@ -22,8 +22,8 @@ export async function askYesNo(question, defaultYes = true, input = process.stdi
 // list and a [x]/[ ] indicator reflecting the current default-or-saved choice,
 // then asks per-profile yes/no. The chosen list is returned in manifest order so
 // install logs stay predictable.
-export async function pickProfiles({ manifest, logger, defaults, names, input, output, prompt = askYesNo }) {
-  const profileNames = names || Object.keys(manifest.profiles || {});
+export async function pickProfiles({ manifest, logger, defaults, input, output, prompt = askYesNo }) {
+  const profileNames = Object.keys(manifest.profiles || {});
   const defaultsSet = new Set(defaults);
 
   logger.log("");
@@ -73,11 +73,10 @@ export function packagesForProfile(manifest, profileName) {
 export async function pickProfilesInteractive({
   manifest,
   defaults,
-  names,
   input = process.stdin,
   output = process.stdout
 }) {
-  const profileNames = names || Object.keys(manifest.profiles || {});
+  const profileNames = Object.keys(manifest.profiles || {});
   if (profileNames.length === 0) {
     return [];
   }

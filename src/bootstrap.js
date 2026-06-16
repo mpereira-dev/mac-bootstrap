@@ -5,13 +5,13 @@ import { formatCommand } from "./command-runner.js";
 import { brewPath, filterByProfiles, loadManifest } from "./manifest.js";
 import { checkNetwork } from "./network.js";
 import { pickProfiles, pickProfilesInteractive } from "./prompt.js";
-import { defaultProfiles, loadSelections, profileNamesToShow, saveSelections } from "./selections.js";
+import { defaultProfiles, loadSelections, resolvePreset, saveSelections } from "./selections.js";
 
 export async function bootstrap({
   dryRun = false,
   yes = false,
   reconfigure = false,
-  allProfiles = false,
+  preset,
   profiles: profilesOverride,
   home = os.homedir(),
   manifestPath,
@@ -25,14 +25,26 @@ export async function bootstrap({
   const saved = loadSelections(home);
   const defaults = defaultProfiles(fullManifest);
 
+  // A preset (codename) resolves to a fixed profile list and behaves like an
+  // explicit --profiles override: no prompt, selection saved.
+  let effectiveOverride = profilesOverride;
+  if (preset) {
+    const presetProfiles = resolvePreset(fullManifest, preset);
+    if (!presetProfiles) {
+      logger.error(`Unknown preset: ${preset}. Available: ${Object.keys(fullManifest.presets || {}).join(", ") || "(none)"}`);
+      return 2;
+    }
+    logger.log(`Preset "${preset}" → ${presetProfiles.join(", ")}`);
+    effectiveOverride = presetProfiles;
+  }
+
   const selectedProfiles = await resolveProfileSelection({
     fullManifest,
     saved,
     defaults,
-    profilesOverride,
+    profilesOverride: effectiveOverride,
     yes,
     reconfigure,
-    allProfiles,
     home,
     logger,
     prompt,
@@ -85,6 +97,12 @@ export async function bootstrap({
     }
   }
 
+  if (selectedProfiles.includes("python")) {
+    if (!ensureUvPython(runner, manifest, logger).ok) {
+      failures.push(`python:${manifest.defaultPython}`);
+    }
+  }
+
   if (failures.length > 0) {
     logger.error(`Bootstrap completed with failures: ${failures.join(", ")}`);
     return 1;
@@ -106,7 +124,6 @@ async function resolveProfileSelection({
   profilesOverride,
   yes,
   reconfigure,
-  allProfiles,
   home,
   logger,
   prompt,
@@ -128,16 +145,14 @@ async function resolveProfileSelection({
   }
 
   // Use the arrow-key TUI on a real terminal; fall back to per-profile yes/no
-  // when tests inject a `prompt` function or when stdin is not a TTY. Hidden
-  // profiles (ai/mobile/network) are off the menu unless --all-profiles is set,
-  // but any already-enabled hidden profile stays visible so it is never dropped.
+  // when tests inject a `prompt` function or when stdin is not a TTY. Every
+  // profile is offered; presets (--preset) are the shortcut for common combos.
   const promptDefaults = saved ? saved.profiles : defaults;
-  const names = profileNamesToShow(fullManifest, { all: allProfiles, include: promptDefaults });
   let picked;
   if (typeof prompt === "function" || !interactive) {
-    picked = await pickProfiles({ manifest: fullManifest, logger, defaults: promptDefaults, names, prompt });
+    picked = await pickProfiles({ manifest: fullManifest, logger, defaults: promptDefaults, prompt });
   } else {
-    picked = await pickProfilesInteractive({ manifest: fullManifest, defaults: promptDefaults, names });
+    picked = await pickProfilesInteractive({ manifest: fullManifest, defaults: promptDefaults });
   }
   const file = saveSelections(home, picked);
   logger.log(`Saved profile selection to ${file}`);
@@ -162,6 +177,9 @@ export function printBootstrapPlan({ home, manifest, profiles, logger }) {
   if (profiles && profiles.includes("node")) {
     logger.log(`[dry-run] volta install node@${manifest.defaultNode}`);
     logger.log(`[dry-run] corepack enable (per-project pnpm/yarn via packageManager field)`);
+  }
+  if (profiles && profiles.includes("python")) {
+    logger.log(`[dry-run] uv python install ${manifest.defaultPython} (uv owns interpreters; per-project pins via uv)`);
   }
 }
 
@@ -298,5 +316,17 @@ function ensureCorepack(runner, logger) {
     return { ok: false };
   }
   logger.log("Enabled Corepack (per-project pnpm/yarn via packageManager field).");
+  return { ok: true };
+}
+
+// uv owns Python interpreters (replacing brew python / pyenv). Seed a baseline
+// interpreter; projects pin their own with `uv python pin` / requires-python.
+function ensureUvPython(runner, manifest, logger) {
+  const result = runner.run("uv", ["python", "install", manifest.defaultPython]);
+  if (result.status !== 0) {
+    logger.error(`Failed to install Python via uv: ${result.stderr}`);
+    return { ok: false };
+  }
+  logger.log(`Ensured Python ${manifest.defaultPython} via uv.`);
   return { ok: true };
 }

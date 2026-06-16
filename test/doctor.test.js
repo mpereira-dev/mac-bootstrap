@@ -7,7 +7,7 @@ import { doctor } from "../src/doctor.js";
 import { loadManifest } from "../src/manifest.js";
 import { FakeRunner, tempHome, TestLogger, writeSavedSelections } from "./helpers.js";
 
-const ALL_PROFILES = ["core", "node", "ai", "mobile", "network", "cloud"];
+const ALL_PROFILES = ["core", "node", "python", "ai", "mobile", "network", "cloud"];
 
 test("doctor passes after isolated bootstrap", async () => {
   const home = tempHome();

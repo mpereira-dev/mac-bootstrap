@@ -13,7 +13,7 @@ Prerequisites are macOS and network access. From a fresh checkout:
 ./bin/bootstrap
 ```
 
-`bin/bootstrap` ensures Xcode CLI tools, Homebrew at `/opt/homebrew`, the curated Homebrew formulae and casks in `packages.json`, Volta-managed Node `22`, Corepack enabled for per-project `pnpm`/`yarn`, minimal zsh shell setup, and `~/Library/LaunchAgents` plus `~/Library/Logs`.
+`bin/bootstrap` ensures Xcode CLI tools, Homebrew at `/opt/homebrew`, the curated Homebrew formulae and casks in `packages.json`, Volta-managed Node `22`, Corepack enabled for per-project `pnpm`/`yarn`, uv-managed Python `3.12`, minimal zsh shell setup, and `~/Library/LaunchAgents` plus `~/Library/Logs`.
 
 ## Profiles
 
@@ -21,14 +21,13 @@ Packages are grouped by profiles in `packages.json`:
 
 - `core`: shell and repository baseline. On by default.
 - `node`: Node.js runtime (Volta) and Corepack for per-project `pnpm`/`yarn`. On by default.
-- `ai`: AI provider CLIs. Off, hidden.
-- `mobile`: Flutter, Android Studio, and CocoaPods. Off, hidden.
-- `network`: Tailscale. Off, hidden.
+- `python`: uv (interpreters + packaging) and Poetry. On by default.
+- `ai`: AI provider CLIs. Off by default.
+- `mobile`: Flutter, Android Studio, and CocoaPods. Off by default.
+- `network`: Tailscale. Off by default.
 - `cloud`: AWS CLI + CDK. Off by default.
 
-On a fresh laptop, `./bin/bootstrap` opens an arrow-key picker for the profiles to enable, saves the selection to `~/.mac-bootstrap/profiles.json`, and reuses it on later runs. Controls: `↑/↓` (or `j/k`) navigate, `space` toggles the highlighted row, `a` toggles all, `enter` confirms, `q` / `esc` / `ctrl-c` cancel.
-
-`core` and `node` are on by default. `ai`, `mobile`, and `network` are **hidden** from the picker to keep the common path short — pass `--all-profiles` to reveal them, or install them directly with `--profiles=...`. A hidden profile that is already enabled stays visible on `--reconfigure`, so it is never silently dropped.
+On a fresh laptop, `./bin/bootstrap` opens an arrow-key picker for the profiles to enable, saves the selection to `~/.mac-bootstrap/profiles.json`, and reuses it on later runs. Controls: `↑/↓` (or `j/k`) navigate, `space` toggles the highlighted row, `a` toggles all, `enter` confirms, `q` / `esc` / `ctrl-c` cancel. Every profile is offered; off-by-default ones just start unchecked.
 
 In non-TTY contexts (CI, redirected stdin) the picker falls back to a per-profile yes/no prompt automatically.
 
@@ -36,11 +35,26 @@ Non-interactive flags:
 
 ```sh
 ./bin/bootstrap --yes
+./bin/bootstrap --preset ranger
 ./bin/bootstrap --profiles=core,node,cloud
-./bin/bootstrap --all-profiles --reconfigure
+./bin/bootstrap --reconfigure
 ```
 
-`--yes` skips the prompt and uses the saved selection, or the manifest defaults when no saved file exists. `--profiles=A,B` installs exactly those profiles and saves the selection. `--reconfigure` ignores the saved selection and prompts again. `--all-profiles` reveals hidden profiles in the picker.
+`--yes` skips the prompt and uses the saved selection, or the manifest defaults when no saved file exists. `--profiles=A,B` installs exactly those profiles and saves the selection. `--reconfigure` ignores the saved selection and prompts again.
+
+### Presets
+
+Presets are one-word codenames that expand to a set of profiles, so you get the same laptop with one word on every machine. `--preset NAME` behaves like `--profiles` (no prompt, selection saved). Run `./bin/bootstrap --help presets` for the table.
+
+| Preset | Profiles | Purpose |
+|---|---|---|
+| `scout` | core, node, python | Any machine: shell + Node + Python baseline |
+| `ranger` | core, node, python, cloud | Cloud workstation (AWS tooling) |
+| `falcon` | core, node, python, ai, network | Connected workstation (AI + Tailscale) |
+| `ace` | core, node, python, ai, mobile | Mobile + AI rig (Flutter stack + AI CLIs) |
+| `maverick` | all profiles | Everything |
+
+Edit the `presets` block in `packages.json` to rename or add your own.
 
 Run `./bin/bootstrap --help` for nested, topic-based help: `--help profiles` prints the profile table, and every command supports `--help <topic> [subtopic]` (e.g. `./bin/migrate --help detection`).
 
@@ -48,12 +62,13 @@ Run `./bin/bootstrap --help` for nested, topic-based help: `--help profiles` pri
 
 The package manifest is intentionally curated. It is seeded from the current laptop, but it includes only packages that are expected to be first-class development tools rather than every transitive dependency.
 
-## Per-Project Node and Package-Manager Versions
+## Per-Project Runtime Versions
 
 `mac-bootstrap` installs the *version managers*, not pinned runtimes, so different projects can use different versions without conflict:
 
 - **Node** is provided by Volta. A project pins its own version with `volta pin node@X`; Volta auto-switches per directory.
 - **pnpm / yarn** are provided by Corepack (`corepack enable` runs during bootstrap when the `node` profile is on). A project pins its exact version in `package.json` with `"packageManager": "pnpm@10.x"`. Do not install pnpm globally — `bin/migrate` flags a standalone global pnpm as something to migrate onto Corepack.
+- **Python** is provided by uv (the `python` profile installs `uv` + `poetry`). uv owns the interpreters — bootstrap seeds Python `3.12`, and a project pins its own with `uv python pin 3.x` or `requires-python`. No brew `python`; uv replaces it. Poetry is installed alongside for existing Poetry projects during the transition to uv.
 
 ## Migrate Existing Installs
 
@@ -64,10 +79,9 @@ The package manifest is intentionally curated. It is seeded from the current lap
 ```sh
 ./bin/migrate aws node            # plan only — show what would change
 ./bin/migrate --apply aws node    # install the managed version, then remove the old one
-./bin/migrate --apply --yes aws   # skip the per-removal confirmation
 ```
 
-For each tool flagged `MIGRATE`, migrate installs the mac-bootstrap-managed version first (idempotent), and only then removes the old copy. Removals that need human judgement — `.pkg` receipts, version placeholders, manual `/usr/local` drops — are printed for you to handle rather than run automatically. With no tool arguments it audits the default set (`brew pnpm aws cdk node`).
+Plan-only by default. `--apply` is the confirmation — it installs the mac-bootstrap-managed version first (idempotent), and only then removes the old copy, with no second prompt. Removals that need human judgement — `.pkg` receipts, version placeholders, manual `/usr/local` drops — are printed for you to handle rather than run automatically. With no tool arguments it audits the default set (`brew pnpm aws cdk node`).
 
 ## Nightly Upkeep
 

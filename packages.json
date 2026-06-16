@@ -1,6 +1,7 @@
 {
   "homebrewPrefix": "/opt/homebrew",
   "defaultNode": "22",
+  "defaultPython": "3.12",
   "profiles": {
     "core": {
       "description": "Shell baseline used by every workflow.",
@@ -10,24 +11,47 @@
       "description": "Node.js runtime + bun via Volta.",
       "defaultEnabled": true
     },
+    "python": {
+      "description": "Python toolchain: uv (interpreters + packaging) and Poetry.",
+      "defaultEnabled": true
+    },
     "ai": {
       "description": "AI CLI providers (claude, codex, antigravity).",
-      "defaultEnabled": false,
-      "hidden": true
+      "defaultEnabled": false
     },
     "mobile": {
       "description": "Mobile development (Flutter, Android Studio, CocoaPods).",
-      "defaultEnabled": false,
-      "hidden": true
+      "defaultEnabled": false
     },
     "network": {
       "description": "Networking + remote access (Tailscale).",
-      "defaultEnabled": false,
-      "hidden": true
+      "defaultEnabled": false
     },
     "cloud": {
       "description": "Cloud tooling (AWS CLI + CDK).",
       "defaultEnabled": false
+    }
+  },
+  "presets": {
+    "scout": {
+      "description": "Any machine: shell + Node + Python baseline.",
+      "profiles": ["core", "node", "python"]
+    },
+    "ranger": {
+      "description": "Cloud workstation: baseline + AWS tooling.",
+      "profiles": ["core", "node", "python", "cloud"]
+    },
+    "falcon": {
+      "description": "Connected workstation: baseline + AI + Tailscale.",
+      "profiles": ["core", "node", "python", "ai", "network"]
+    },
+    "ace": {
+      "description": "Mobile + AI rig: baseline + Flutter stack + AI CLIs.",
+      "profiles": ["core", "node", "python", "ai", "mobile"]
+    },
+    "maverick": {
+      "description": "Everything: every profile enabled.",
+      "profiles": ["core", "node", "python", "ai", "mobile", "network", "cloud"]
     }
   },
   "formulae": [
@@ -62,11 +86,6 @@
       "why": "Quick filesystem inspection."
     },
     {
-      "name": "python",
-      "profile": "core",
-      "why": "General scripting and local tooling."
-    },
-    {
       "name": "volta",
       "profile": "node",
       "why": "Pinned Node.js runtime management."
@@ -75,6 +94,18 @@
       "name": "oven-sh/bun/bun",
       "profile": "node",
       "why": "Fast JavaScript runtime + package manager."
+    },
+    {
+      "name": "uv",
+      "profile": "python",
+      "command": "uv",
+      "why": "Fast Python interpreter + project manager. Owns Python versions (replaces brew python / pyenv) and packaging."
+    },
+    {
+      "name": "poetry",
+      "profile": "python",
+      "command": "poetry",
+      "why": "Project/dependency manager for existing Poetry projects; coexists with uv during migration."
     },
     {
       "name": "cocoapods",

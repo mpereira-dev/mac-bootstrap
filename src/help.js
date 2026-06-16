@@ -49,11 +49,21 @@ export function renderProfileTable(manifest) {
     return [
       name,
       def.defaultEnabled ? "on" : "off",
-      def.hidden ? "hidden" : "shown",
       packages.join(", ") || "(none)"
     ];
   });
-  return renderTable(["Profile", "Default", "Picker", "Packages"], rows);
+  return renderTable(["Profile", "Default", "Packages"], rows);
+}
+
+// The preset (codename) table used in `bootstrap --help presets`.
+export function renderPresetTable(manifest) {
+  const presets = manifest.presets || {};
+  const rows = Object.keys(presets).map((name) => [
+    name,
+    (presets[name].profiles || []).join(", "),
+    presets[name].description || ""
+  ]);
+  return renderTable(["Preset", "Profiles", "Purpose"], rows);
 }
 
 // --- help content tree -------------------------------------------------------
@@ -64,7 +74,7 @@ export function renderProfileTable(manifest) {
 const TREES = {
   bootstrap: {
     summary: "Install the owner-approved baseline on an Apple Silicon macOS laptop.",
-    usage: "mac-bootstrap [--dry-run] [--yes] [--reconfigure] [--profiles=A,B] [--all-profiles] [--home PATH] [--packages PATH]",
+    usage: "mac-bootstrap [--dry-run] [--yes] [--reconfigure] [--preset NAME] [--profiles=A,B] [--home PATH] [--packages PATH]",
     body: () =>
       [
         "Idempotent: a re-run installs only what is missing, so it is safe to run",
@@ -75,44 +85,46 @@ const TREES = {
       ].join("\n"),
     topics: {
       profiles: {
-        summary: "What profiles exist, which install by default, which are hidden.",
+        summary: "What profiles exist and which install by default.",
         body: (ctx) =>
           [
             renderProfileTable(ctx.manifest),
             "",
-            "Default = installed on a plain `--yes` run. Picker = whether the",
-            "interactive selector lists it by default (hidden ones need --all-profiles).",
-            "Your choice is saved to ~/.mac-bootstrap/profiles.json and reused after."
+            "Default = installed on a plain `--yes` run. Every profile is offered in",
+            "the interactive picker; off-by-default ones just start unchecked.",
+            "Your choice is saved to ~/.mac-bootstrap/profiles.json and reused after.",
+            "",
+            "Prefer a one-word codename? See `--help presets`."
           ].join("\n"),
         topics: {
-          hidden: {
-            summary: "Why ai/mobile/network are hidden and how to reach them.",
-            body: () =>
-              [
-                "ai, mobile, and network are marked hidden to keep the common path short.",
-                "They are not gone — there are three ways to enable them:",
-                "",
-                "  • --all-profiles      reveal every profile in the interactive picker",
-                "  • --profiles=ai,mobile install them directly, no picker",
-                "  • already enabled?    a hidden profile that is already on stays visible",
-                "                        on --reconfigure, so it is never silently dropped"
-              ].join("\n")
-          },
           selection: {
             summary: "How a selection is chosen, saved, and changed.",
             body: () =>
               [
                 "Selection priority, highest first:",
-                "  1. --profiles=A,B   exactly these, no prompt (saved)",
-                "  2. saved file       ~/.mac-bootstrap/profiles.json (unless --reconfigure)",
-                "  3. --yes            saved selection, or manifest defaults if none saved",
-                "  4. (none)           prompt once interactively, then save",
+                "  1. --preset NAME    expand a codename to its profiles, no prompt (saved)",
+                "  2. --profiles=A,B   exactly these, no prompt (saved)",
+                "  3. saved file       ~/.mac-bootstrap/profiles.json (unless --reconfigure)",
+                "  4. --yes            saved selection, or manifest defaults if none saved",
+                "  5. (none)           prompt once interactively, then save",
                 "",
                 "Re-run with --reconfigure to be prompted again. Delete the saved file",
                 "to start clean. doctor and nightly read this same file."
               ].join("\n")
           }
         }
+      },
+      presets: {
+        summary: "One-word codenames that expand to a set of profiles.",
+        body: (ctx) =>
+          [
+            renderPresetTable(ctx.manifest),
+            "",
+            "Use one with --preset, e.g. `mac-bootstrap --preset ranger`. A preset",
+            "behaves like --profiles: it skips the prompt and saves the selection, so",
+            "you get the same laptop with one word on every machine.",
+            "Edit the `presets` block in packages.json to rename or add your own."
+          ].join("\n")
       },
       corepack: {
         summary: "Per-project pnpm/yarn versions, no global install.",
@@ -134,8 +146,9 @@ const TREES = {
             "  mac-bootstrap --dry-run            preview everything, change nothing",
             "  mac-bootstrap                      first run: prompt, then install",
             "  mac-bootstrap --yes                non-interactive, use saved/defaults",
+            "  mac-bootstrap --preset ranger      a codename → its profile set",
             "  mac-bootstrap --profiles=core,node,cloud   exactly these",
-            "  mac-bootstrap --all-profiles --reconfigure  re-pick, hidden ones shown"
+            "  mac-bootstrap --reconfigure        re-pick profiles from scratch"
           ].join("\n")
       }
     }
@@ -206,11 +219,11 @@ const TREES = {
 
   migrate: {
     summary: "Find tools installed the wrong way and move them onto managed installs.",
-    usage: "mac-bootstrap-migrate [--apply] [--yes] [--home PATH] [--packages PATH] [tool ...]",
+    usage: "mac-bootstrap-migrate [--apply] [--home PATH] [--packages PATH] [tool ...]",
     body: () =>
       [
         "Plan-only by default — it prints what would change and touches nothing.",
-        "Add --apply to execute, and --yes to skip the per-removal confirmation.",
+        "Add --apply to execute (the flag is your confirmation; no extra prompts).",
         "With no tool arguments it audits the default set: brew pnpm aws cdk node."
       ].join("\n"),
     topics: {
@@ -253,8 +266,8 @@ const TREES = {
             "",
             "Removal is auto-run ONLY for clean commands (e.g. `npm uninstall -g aws`).",
             "Anything with a version placeholder, a `.pkg` receipt, or a manual drop is",
-            "PRINTED for you to handle — never run automatically. Each removal asks for",
-            "confirmation unless --yes is passed."
+            "PRINTED for you to handle — never run automatically. Running --apply is the",
+            "confirmation; there is no second prompt."
           ].join("\n")
       }
     }
