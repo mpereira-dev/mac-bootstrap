@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.2.2] - 2026-06-17
 ### Added
 - **`python` profile** (on by default) — `uv` + `poetry`. uv owns Python interpreters (replacing brew `python`): bootstrap seeds Python `3.12`, and projects pin their own with `uv python pin` / `requires-python`. doctor checks `uv` + `poetry`. `python` was removed from `core`.
 - **Presets** — one-word codenames in `packages.json` that expand to a profile set: `scout`, `ranger`, `falcon`, `ace`, `maverick`. Use with `./bin/bootstrap --preset NAME` (behaves like `--profiles`: no prompt, selection saved). `./bin/bootstrap --help presets` shows the table.
@@ -14,6 +14,11 @@
 
 ### Changed
 - `ai` profile is now **off by default**. Default profiles are `core`, `node`, `python`.
+
+### Fixed
+- CLI entrypoints now dispatch nested help through `src/help.js` instead of importing removed `*Help` exports.
+- Added the advertised `bin/migrate` executable so `mac-bootstrap-migrate` and `./bin/migrate` work.
+- `./bin/bootstrap --dry-run --preset NAME` no longer writes `~/.mac-bootstrap/profiles.json`.
 
 ## [0.2.1] - 2026-06-10
 ### Changed

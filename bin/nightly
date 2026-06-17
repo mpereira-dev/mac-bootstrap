@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 import { parseArgs } from "../src/args.js";
 import { CommandRunner } from "../src/command-runner.js";
-import { nightly, nightlyHelp } from "../src/nightly.js";
+import { printHelp } from "../src/help.js";
+import { nightly } from "../src/nightly.js";
 
 try {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
-    console.log(nightlyHelp());
-    process.exit(0);
+    process.exit(printHelp("nightly", options.helpTopics));
   }
   const exitCode = await nightly({
     ...options,

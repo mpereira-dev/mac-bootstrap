@@ -5,7 +5,7 @@ import { formatCommand } from "./command-runner.js";
 import { brewPath, filterByProfiles, loadManifest } from "./manifest.js";
 import { checkNetwork } from "./network.js";
 import { pickProfiles, pickProfilesInteractive } from "./prompt.js";
-import { defaultProfiles, loadSelections, resolvePreset, saveSelections } from "./selections.js";
+import { defaultProfiles, loadSelections, resolvePreset, saveSelections, selectionsPath } from "./selections.js";
 
 export async function bootstrap({
   dryRun = false,
@@ -42,6 +42,7 @@ export async function bootstrap({
     fullManifest,
     saved,
     defaults,
+    dryRun,
     profilesOverride: effectiveOverride,
     yes,
     reconfigure,
@@ -121,6 +122,7 @@ async function resolveProfileSelection({
   fullManifest,
   saved,
   defaults,
+  dryRun,
   profilesOverride,
   yes,
   reconfigure,
@@ -130,6 +132,10 @@ async function resolveProfileSelection({
   interactive
 }) {
   if (Array.isArray(profilesOverride) && profilesOverride.length > 0) {
+    if (dryRun) {
+      logger.log(`[dry-run] using --profiles override without saving: ${profilesOverride.join(", ")}`);
+      return profilesOverride;
+    }
     saveSelections(home, profilesOverride);
     logger.log(`Using --profiles override and saving: ${profilesOverride.join(", ")}`);
     return profilesOverride;
@@ -154,7 +160,12 @@ async function resolveProfileSelection({
   } else {
     picked = await pickProfilesInteractive({ manifest: fullManifest, defaults: promptDefaults });
   }
-  const file = saveSelections(home, picked);
+  const file = selectionsPath(home);
+  if (dryRun) {
+    logger.log(`[dry-run] would save profile selection to ${file}`);
+    return picked;
+  }
+  saveSelections(home, picked);
   logger.log(`Saved profile selection to ${file}`);
   return picked;
 }

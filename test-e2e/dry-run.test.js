@@ -20,3 +20,17 @@ for (const command of ["bootstrap", "nightly", "doctor"]) {
     assert.equal(result.stderr, "");
   });
 }
+
+for (const [command, args, expected] of [
+  ["bootstrap", ["--help", "profiles"], /Profile/],
+  ["migrate", ["--help", "detection"], /installer is identified/]
+]) {
+  test(`${command} topic help exits successfully`, () => {
+    const result = spawnSync(path.join(repoRoot, "bin", command), args, {
+      encoding: "utf8"
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, expected);
+    assert.equal(result.stderr, "");
+  });
+}

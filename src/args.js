@@ -39,6 +39,8 @@ export function parseArgs(argv) {
       options.manifestPath = arg.slice("--packages=".length);
     } else if (arg === "--help" || arg === "-h") {
       options.help = true;
+      options.helpTopics = argv.slice(index + 1);
+      break;
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }

@@ -63,6 +63,17 @@ test("bootstrap dry-run prints actions and does nothing", async () => {
   assert.equal(exitCode, 0);
   assert.match(logger.text(), /brew install gh if missing/);
   assert.equal(runner.calls.length, 0);
+  assert.equal(fs.existsSync(selectionsPath(home)), false);
+});
+
+test("bootstrap preset dry-run does not save the profile selection", async () => {
+  const home = tempHome();
+  const runner = new FakeRunner();
+  const logger = new TestLogger();
+  const exitCode = await bootstrap({ dryRun: true, home, runner, logger, preset: "scout" });
+  assert.equal(exitCode, 0);
+  assert.match(logger.text(), /\[dry-run\] using --profiles override without saving: core, node, python/);
+  assert.equal(fs.existsSync(selectionsPath(home)), false);
 });
 
 test("bootstrap with core profile installs only core packages", async () => {
