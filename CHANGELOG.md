@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0] - 2026-06-17
+### Added
+- `./bin/security` is now a first-class CLI with deep help topics and an npm bin entrypoint.
+- Security hardening now detects and applies targeted cleanup for quarantined nested Homebrew Cask helper binaries, including Codex's bundled `codex-path/rg`.
+- Nightly upkeep now reruns the targeted Cask helper quarantine sweep after `brew upgrade --cask`.
+- Doctor now reports each check as it completes and detects quarantined nested helpers in enabled Homebrew Casks.
+- Deep help topics were added for doctor, nightly, migrate, and security operational workflows.
+
+### Changed
+- Doctor checks CLI casks by their usable command, so `antigravity-cli` validates through the official `agy` command.
+- Help usage and examples now prefer repo-local `./bin/...` entrypoints.
+- Security dry-run mode now performs real read-only detection; `--dry-run` only affects `--apply`.
+
+### Fixed
+- Security apply refuses FileVault, firewall, or SSH changes when the current state cannot be determined safely.
+- Doctor package checks are bounded with timeouts so slow or stuck commands do not hang forever before producing output.
+
 ## [0.3.0] - 2026-06-17
 ### Added
 - Terraform CLI support in the `cloud` profile via `hashicorp/tap/terraform`.

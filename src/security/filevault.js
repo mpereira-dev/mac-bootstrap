@@ -39,6 +39,10 @@ export async function suggest({ current } = {}) {
 export async function apply({ runner, logger = console, dryRun = false } = {}) {
   if (!runner) throw new Error("filevault.apply: runner is required");
   const current = await detect({ runner });
+  if (!current.ok) {
+    logger.log(`filevault: cannot determine state — ${current.error || "detect failed"}`);
+    return { changed: false, error: current.error || "detect failed" };
+  }
   if (current.enabled) {
     logger.log("filevault: already enabled — noop");
     return { changed: false };

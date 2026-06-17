@@ -94,6 +94,8 @@ brew upgrade --cask
 claude update
 ```
 
+After cask upgrades, nightly also strips `com.apple.quarantine` from nested Homebrew Cask helper binaries such as Codex's bundled `codex-path/rg`. This is intentionally targeted to Homebrew-managed Caskroom payloads so a Codex update does not bring back the Gatekeeper "`rg` Not Opened" prompt.
+
 Self-update commands such as `claude update` only run for casks in enabled profiles. If `packages.json` later pins npm globals, nightly updates those too. It writes to `~/Library/Logs/mac-bootstrap-nightly.log`, rotates prior logs with seven-day retention, captures before/after version snapshots, and posts a Discord summary only when `DISCORD_WEBHOOK_URL` is present in the runtime environment.
 
 The launchd template lives at `launchd/com.mac-bootstrap.nightly.plist`. It is intentionally not loaded by this repository; install it only after review by copying it to `~/Library/LaunchAgents/` and loading it with `launchctl bootstrap`.
@@ -104,7 +106,16 @@ The launchd template lives at `launchd/com.mac-bootstrap.nightly.plist`. It is i
 ./bin/doctor
 ```
 
-Doctor checks expected directories, the launchd template, the launchd job if the plist has been installed, shell baseline, Xcode CLI tools, enabled Homebrew formulae and casks, enabled cask commands, Volta, and the expected major Node version when the `node` profile is enabled. It exits non-zero on drift.
+Doctor checks expected directories, the launchd template, the launchd job if the plist has been installed, shell baseline, Xcode CLI tools, enabled Homebrew formulae, CLI commands provided by enabled casks, GUI casks without commands, quarantined nested helpers in enabled Homebrew Casks, Volta, and the expected major Node version when the `node` profile is enabled. It exits non-zero on drift.
+
+## Security Hardening
+
+```sh
+./bin/security
+./bin/security --dry-run --apply
+```
+
+Security is read-only by default: it detects and suggests hardening for FileVault, the macOS Application Firewall, Remote Login / SSH, and quarantined nested helper binaries inside Homebrew Casks. `--apply` performs the automated steps where safe; FileVault enablement remains manual because the recovery key must be captured and stored immediately. The Cask quarantine cleanup only targets helper binaries under Homebrew's Caskroom, not `~/Downloads` or `/Applications` broadly. Use `./bin/security --help modules` or `./bin/security --help cask-quarantine` for the deeper menu.
 
 ## Shell Environment
 

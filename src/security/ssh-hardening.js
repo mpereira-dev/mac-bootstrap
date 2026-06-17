@@ -38,7 +38,9 @@ UseDNS no
 async function isRemoteLoginEnabled(runner) {
   const result = await runner.run("systemsetup", ["-getremotelogin"]);
   if (result.exitCode !== 0) return null;
-  return /On\b/i.test(result.stdout || "");
+  const output = [result.stdout, result.stderr].filter(Boolean).join("\n");
+  if (/administrator access|requires root|not permitted/i.test(output)) return null;
+  return /On\b/i.test(output);
 }
 
 async function readDropIn(runner) {
@@ -92,6 +94,10 @@ export async function apply({ runner, logger = console, dryRun = false, mode = "
   if (!runner) throw new Error("ssh-hardening.apply: runner is required");
   const current = await detect({ runner });
   if (mode === "disable") {
+    if (current.remoteLoginOn === null) {
+      logger.log("ssh-hardening: cannot determine Remote Login state — not applying");
+      return { changed: false, error: "cannot determine Remote Login state" };
+    }
     if (current.remoteLoginOn === false) {
       logger.log("ssh-hardening: Remote Login already off — noop");
       return { changed: false };
@@ -107,6 +113,10 @@ export async function apply({ runner, logger = console, dryRun = false, mode = "
   if (current.remoteLoginOn === false) {
     logger.log("ssh-hardening: Remote Login is off — no hardening needed (no attack surface)");
     return { changed: false };
+  }
+  if (current.remoteLoginOn === null) {
+    logger.log("ssh-hardening: cannot determine Remote Login state — not applying");
+    return { changed: false, error: "cannot determine Remote Login state" };
   }
   if (current.dropInExists && current.dropInMatches) {
     logger.log("ssh-hardening: drop-in already in place and matches — noop");

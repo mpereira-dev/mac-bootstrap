@@ -4,8 +4,9 @@
 import * as filevault from "./filevault.js";
 import * as firewall from "./firewall.js";
 import * as sshHardening from "./ssh-hardening.js";
+import * as caskQuarantine from "./cask-quarantine.js";
 
-export const MODULES = [filevault, firewall, sshHardening];
+export const MODULES = [filevault, firewall, sshHardening, caskQuarantine];
 
 export async function detectAll({ runner } = {}) {
   const out = {};
@@ -28,4 +29,4 @@ export async function suggestAll({ runner } = {}) {
   return out;
 }
 
-export { filevault, firewall, sshHardening };
+export { filevault, firewall, sshHardening, caskQuarantine };

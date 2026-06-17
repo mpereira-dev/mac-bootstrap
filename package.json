@@ -1,6 +1,6 @@
 {
   "name": "mac-bootstrap",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Deterministic macOS laptop bootstrap and nightly upkeep.",
@@ -8,7 +8,8 @@
     "mac-bootstrap": "./bin/bootstrap",
     "mac-bootstrap-nightly": "./bin/nightly",
     "mac-bootstrap-doctor": "./bin/doctor",
-    "mac-bootstrap-migrate": "./bin/migrate"
+    "mac-bootstrap-migrate": "./bin/migrate",
+    "mac-bootstrap-security": "./bin/security"
   },
   "scripts": {
     "test": "node --test --experimental-test-coverage",

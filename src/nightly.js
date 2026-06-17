@@ -5,6 +5,7 @@ import { brewPath, filterByProfiles, loadManifest } from "./manifest.js";
 import { checkNetwork } from "./network.js";
 import { FileLogger } from "./logger.js";
 import { defaultProfiles, loadSelections } from "./selections.js";
+import { caskQuarantine } from "./security/index.js";
 
 export async function nightly({
   dryRun = false,
@@ -42,6 +43,7 @@ export async function nightly({
   runStep(runner, log, failures, brewPath(manifest), ["update"], "brew update");
   runStep(runner, log, failures, brewPath(manifest), ["upgrade"], "brew upgrade");
   runStep(runner, log, failures, brewPath(manifest), ["upgrade", "--cask"], "brew upgrade --cask");
+  await runCaskQuarantineSweep({ runner, log, failures, manifest });
 
   for (const cask of manifest.casks) {
     if (Array.isArray(cask.selfUpdate) && cask.selfUpdate.length > 0) {
@@ -73,6 +75,7 @@ export function printNightlyPlan({ home, manifest, profiles, logger }) {
   logger.log("[dry-run] brew update");
   logger.log("[dry-run] brew upgrade");
   logger.log("[dry-run] brew upgrade --cask");
+  logger.log("[dry-run] strip quarantine from nested Homebrew Cask helper binaries");
   for (const cask of manifest.casks) {
     if (Array.isArray(cask.selfUpdate) && cask.selfUpdate.length > 0) {
       logger.log(`[dry-run] ${cask.selfUpdate.join(" ")}`);
@@ -156,6 +159,19 @@ function runStep(runner, logger, failures, command, args, label) {
     return;
   }
   logger.log(`${label} complete.`);
+}
+
+async function runCaskQuarantineSweep({ runner, log, failures, manifest }) {
+  const result = await caskQuarantine.apply({
+    runner,
+    logger: log,
+    homebrewPrefix: runner.homebrewPrefix || manifest.homebrewPrefix,
+    caskNames: manifest.casks.map((cask) => cask.name)
+  });
+  if (result.error) {
+    failures.push(`cask quarantine sweep: ${result.error}`);
+    log.error(`cask quarantine sweep failed: ${result.error}`);
+  }
 }
 
 function teeLogger(first, second) {

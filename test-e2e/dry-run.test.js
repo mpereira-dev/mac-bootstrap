@@ -23,7 +23,10 @@ for (const command of ["bootstrap", "nightly", "doctor"]) {
 
 for (const [command, args, expected] of [
   ["bootstrap", ["--help", "profiles"], /Profile/],
-  ["migrate", ["--help", "detection"], /installer is identified/]
+  ["doctor", ["--help", "fixes"], /respond when doctor reports drift/],
+  ["nightly", ["--help", "logs"], /mac-bootstrap-nightly\.log/],
+  ["migrate", ["--help", "detection"], /installer is identified/],
+  ["security", ["--help", "modules"], /filevault/]
 ]) {
   test(`${command} topic help exits successfully`, () => {
     const result = spawnSync(path.join(repoRoot, "bin", command), args, {

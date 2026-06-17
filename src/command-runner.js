@@ -11,27 +11,34 @@ export class CommandRunner {
     const printable = formatCommand(command, args);
     if (this.dryRun) {
       this.logger.log(`[dry-run] ${printable}`);
-      return { status: 0, stdout: "", stderr: "", dryRun: true };
+      return { status: 0, exitCode: 0, stdout: "", stderr: "", dryRun: true };
     }
 
     const result = spawnSync(command, args, {
       encoding: "utf8",
       env: { ...this.env, ...(options.env ?? {}) },
       cwd: options.cwd,
-      input: options.input
+      input: options.input,
+      timeout: options.timeoutMs
     });
 
     if (result.error) {
+      const status = result.error.code === "ENOENT" ? 127 : result.error.code === "ETIMEDOUT" ? 124 : 1;
       return {
-        status: result.error.code === "ENOENT" ? 127 : 1,
+        status,
+        exitCode: status,
         stdout: result.stdout ?? "",
-        stderr: result.stderr ? result.stderr : result.error.message,
+        stderr: result.error.code === "ETIMEDOUT"
+          ? `timed out after ${options.timeoutMs}ms`
+          : result.stderr ? result.stderr : result.error.message,
         error: result.error
       };
     }
 
+    const status = result.status ?? 0;
     return {
-      status: result.status ?? 0,
+      status,
+      exitCode: status,
       stdout: result.stdout ?? "",
       stderr: result.stderr ?? ""
     };

@@ -6,10 +6,11 @@ import { packagesForProfile } from "./prompt.js";
 // Bin name a topic path is reached through, used in the "run this for detail"
 // footer so copy/paste works regardless of which command you are in.
 const BIN = {
-  bootstrap: "mac-bootstrap",
-  doctor: "mac-bootstrap-doctor",
-  nightly: "mac-bootstrap-nightly",
-  migrate: "mac-bootstrap-migrate"
+  bootstrap: "./bin/bootstrap",
+  doctor: "./bin/doctor",
+  nightly: "./bin/nightly",
+  migrate: "./bin/migrate",
+  security: "./bin/security"
 };
 
 function leaf(name) {
@@ -74,7 +75,7 @@ export function renderPresetTable(manifest) {
 const TREES = {
   bootstrap: {
     summary: "Install the owner-approved baseline on an Apple Silicon macOS laptop.",
-    usage: "mac-bootstrap [--dry-run] [--yes] [--reconfigure] [--preset NAME] [--profiles=A,B] [--home PATH] [--packages PATH]",
+    usage: "./bin/bootstrap [--dry-run] [--yes] [--reconfigure] [--preset NAME] [--profiles=A,B] [--home PATH] [--packages PATH]",
     body: () =>
       [
         "Idempotent: a re-run installs only what is missing, so it is safe to run",
@@ -120,7 +121,7 @@ const TREES = {
           [
             renderPresetTable(ctx.manifest),
             "",
-            "Use one with --preset, e.g. `mac-bootstrap --preset ranger`. A preset",
+            "Use one with --preset, e.g. `./bin/bootstrap --preset ranger`. A preset",
             "behaves like --profiles: it skips the prompt and saves the selection, so",
             "you get the same laptop with one word on every machine.",
             "Edit the `presets` block in packages.json to rename or add your own."
@@ -136,19 +137,42 @@ const TREES = {
             "",
             "So different repos use different pnpm versions with no conflict, and you",
             "never install pnpm globally. A standalone global pnpm shows up as MIGRATE",
-            "in `mac-bootstrap-migrate`."
+            "in `./bin/migrate`."
           ].join("\n")
       },
       examples: {
         summary: "Common invocations.",
         body: () =>
           [
-            "  mac-bootstrap --dry-run            preview everything, change nothing",
-            "  mac-bootstrap                      first run: prompt, then install",
-            "  mac-bootstrap --yes                non-interactive, use saved/defaults",
-            "  mac-bootstrap --preset ranger      a codename → its profile set",
-            "  mac-bootstrap --profiles=core,node,cloud   exactly these",
-            "  mac-bootstrap --reconfigure        re-pick profiles from scratch"
+            "  ./bin/bootstrap --dry-run            preview everything, change nothing",
+            "  ./bin/bootstrap                      first run: prompt, then install",
+            "  ./bin/bootstrap --yes                non-interactive, use saved/defaults",
+            "  ./bin/bootstrap --preset ranger      a codename -> its profile set",
+            "  ./bin/bootstrap --profiles=core,node,cloud   exactly these",
+            "  ./bin/bootstrap --reconfigure        re-pick profiles from scratch"
+          ].join("\n")
+      },
+      flags: {
+        summary: "All bootstrap flags.",
+        body: () =>
+          [
+            "  --dry-run          print the plan, do not install",
+            "  --yes, -y          non-interactive; use saved selection or defaults",
+            "  --reconfigure     ignore saved profiles and prompt again",
+            "  --preset NAME     expand a preset and save the resulting profiles",
+            "  --profiles=A,B    install exactly these profiles and save them",
+            "  --home PATH       use a different HOME for config files",
+            "  --packages PATH   load a different packages.json manifest",
+            "  --help [topic]    show this help tree"
+          ].join("\n")
+      },
+      "exit-codes": {
+        summary: "What the exit status means.",
+        body: () =>
+          [
+            "  0  bootstrap completed, or dry-run/help printed successfully",
+            "  1  argument, prompt, install, or filesystem failure",
+            "  2  network is unavailable before install work begins"
           ].join("\n")
       }
     }
@@ -156,7 +180,7 @@ const TREES = {
 
   doctor: {
     summary: "Verify the laptop matches the expected baseline; exit non-zero on drift.",
-    usage: "mac-bootstrap-doctor [--dry-run] [--home PATH] [--packages PATH]",
+    usage: "./bin/doctor [--dry-run] [--home PATH] [--packages PATH]",
     body: () => "Only the currently-enabled profiles are checked (saved selection, or defaults).",
     topics: {
       checks: {
@@ -168,27 +192,57 @@ const TREES = {
             "  • the launchd job is loaded (only if you installed the plist)",
             "  • ~/.zshrc carries the mac-bootstrap managed baseline block",
             "  • Xcode CLI tools are installed",
-            "  • every enabled formula and cask is installed",
-            "  • each enabled cask command answers --version",
+            "  • every enabled formula is installed",
+            "  • CLI casks answer through their usable command (claude/codex/agy)",
+            "  • GUI casks without commands have an installed Homebrew cask receipt",
+            "  • enabled Homebrew Casks do not carry quarantined nested helper binaries",
             "  • Volta, Node (expected major), and Corepack (node profile only)"
+          ].join("\n")
+      },
+      profiles: {
+        summary: "Which profiles doctor checks.",
+        body: () =>
+          [
+            "doctor reads the same saved profile selection as bootstrap:",
+            "  ~/.mac-bootstrap/profiles.json",
+            "",
+            "If no saved selection exists, doctor checks manifest defaults. Use",
+            "`./bin/bootstrap --profiles=...` or `./bin/bootstrap --preset ...` to set",
+            "the laptop profile set doctor and nightly should enforce."
           ].join("\n")
       },
       "exit-codes": {
         summary: "What the exit status means.",
         body: () => "  0  everything matches\n  1  at least one check failed (drift)"
+      },
+      fixes: {
+        summary: "How to respond when doctor reports drift.",
+        body: () =>
+          [
+            "Start with the failing line:",
+            "  • missing formula/cask: run `./bin/bootstrap --profiles=...` or `brew install ...`",
+            "  • wrong Node major: run `volta install node@24` from the node profile",
+            "  • missing Corepack: run `corepack enable`",
+            "  • quarantined cask helper: run targeted `./bin/security --apply` with skips as needed",
+            "  • missing zsh baseline: run `./bin/bootstrap` once for this HOME",
+            "  • launchd job missing: install the plist only after reviewing the template",
+            "",
+            "Use `./bin/doctor --dry-run` to see the check plan without invoking tools."
+          ].join("\n")
       }
     }
   },
 
   nightly: {
     summary: "Unattended Homebrew + self-update maintenance, designed for launchd.",
-    usage: "mac-bootstrap-nightly [--dry-run] [--home PATH] [--packages PATH]",
+    usage: "./bin/nightly [--dry-run] [--home PATH] [--packages PATH]",
     topics: {
       steps: {
         summary: "What the nightly job runs.",
         body: () =>
           [
             "  brew update / upgrade / upgrade --cask",
+            "  strip quarantine from nested Homebrew Cask helper binaries",
             "  per-cask self-updates (e.g. `claude update`) for enabled profiles only",
             "  npm-global installs, if packages.json pins any",
             "",
@@ -213,13 +267,33 @@ const TREES = {
         summary: "Optional Discord summary.",
         body: () =>
           "A summary is posted only when DISCORD_WEBHOOK_URL is set in the environment. No webhook, no post."
+      },
+      logs: {
+        summary: "Where nightly writes logs and snapshots.",
+        body: () =>
+          [
+            "Nightly writes the active log to:",
+            "  ~/Library/Logs/mac-bootstrap-nightly.log",
+            "",
+            "Before/after version snapshots are captured during the run so the Discord",
+            "summary can report what changed. Old logs are rotated with seven-day retention."
+          ].join("\n")
+      },
+      "exit-codes": {
+        summary: "What the exit status means.",
+        body: () =>
+          [
+            "  0  maintenance completed, or dry-run/help printed successfully",
+            "  1  one or more maintenance commands failed",
+            "  2  network is unavailable before maintenance begins"
+          ].join("\n")
       }
     }
   },
 
   migrate: {
     summary: "Find tools installed the wrong way and move them onto managed installs.",
-    usage: "mac-bootstrap-migrate [--apply] [--home PATH] [--packages PATH] [tool ...]",
+    usage: "./bin/migrate [--apply] [--home PATH] [--packages PATH] [tool ...]",
     body: () =>
       [
         "Plan-only by default — it prints what would change and touches nothing.",
@@ -256,6 +330,20 @@ const TREES = {
             "Only MIGRATE tools are acted on."
           ].join("\n")
       },
+      tools: {
+        summary: "Default and positional tool selection.",
+        body: () =>
+          [
+            "With no positional tools, migrate audits:",
+            "  brew pnpm aws cdk node",
+            "",
+            "Pass tool names to narrow the run:",
+            "  ./bin/migrate aws node",
+            "",
+            "Tool names are command names, not always package names. The manifest maps",
+            "commands like `aws`, `cdk`, and `terraform` back to their managed formula."
+          ].join("\n")
+      },
       removal: {
         summary: "How old copies are removed — and when they are not.",
         body: () =>
@@ -268,6 +356,126 @@ const TREES = {
             "Anything with a version placeholder, a `.pkg` receipt, or a manual drop is",
             "PRINTED for you to handle — never run automatically. Running --apply is the",
             "confirmation; there is no second prompt."
+          ].join("\n")
+      },
+      examples: {
+        summary: "Common migrate invocations.",
+        body: () =>
+          [
+            "  ./bin/migrate                 audit default tools, change nothing",
+            "  ./bin/migrate aws node        audit only AWS CLI + Node",
+            "  ./bin/migrate --apply aws     install managed AWS CLI, then remove old copy",
+            "  ./bin/migrate --help removal  explain safety rules"
+          ].join("\n")
+      }
+    }
+  },
+
+  security: {
+    summary: "Detect and optionally apply local macOS security hardening.",
+    usage: "./bin/security [--apply] [--dry-run] [--skip MODULE] [--ssh-mode harden|disable]",
+    body: () =>
+      [
+        "Default mode is read-only: detect current state, print suggested actions,",
+        "and exit without changing the machine. Add --apply to execute automated",
+        "steps. FileVault enablement remains a manual step because it requires",
+        "interactive sudo and recovery-key capture."
+      ].join("\n"),
+    topics: {
+      modules: {
+        summary: "The security checks this command owns.",
+        body: () =>
+          [
+            "  filevault       disk-at-rest encryption for laptop theft",
+            "  firewall        macOS Application Firewall + stealth mode",
+            "  ssh-hardening   Remote Login off, or hardened sshd config if SSH stays on",
+            "  cask-quarantine targeted Gatekeeper quarantine cleanup for nested Cask helpers",
+            "",
+            "Run with `--skip MODULE` to omit a module during apply."
+          ].join("\n")
+      },
+      filevault: {
+        summary: "Disk encryption check and manual enablement guidance.",
+        body: () =>
+          [
+            "Detects `fdesetup status` and suggests `sudo fdesetup enable` when off.",
+            "The command does not auto-enable FileVault because the recovery key must",
+            "be captured immediately and stored safely.",
+            "",
+            "Operational gotcha: after reboot, LaunchAgents do not run until the first",
+            "interactive login unlocks FileVault. For planned remote reboots, use",
+            "`sudo fdesetup authrestart` when appropriate."
+          ].join("\n")
+      },
+      firewall: {
+        summary: "Application Firewall and stealth-mode hardening.",
+        body: () =>
+          [
+            "Detects global firewall state and stealth mode via socketfilterfw.",
+            "Apply enables both when needed:",
+            "  sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on",
+            "  sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on",
+            "",
+            "It intentionally avoids `--setblockall` because that breaks Bonjour,",
+            "AirDrop, and local development access."
+          ].join("\n")
+      },
+      "ssh-hardening": {
+        summary: "Remote Login policy and sshd drop-in hardening.",
+        body: () =>
+          [
+            "Preferred policy is Remote Login off:",
+            "  ./bin/security --apply --ssh-mode disable",
+            "",
+            "If SSH must stay on, default apply mode writes:",
+            "  /etc/ssh/sshd_config.d/99-mac-bootstrap.conf",
+            "",
+            "The drop-in disables password/root login, tightens auth attempts, validates",
+            "with `sshd -t`, and reloads sshd. If validation fails, the drop-in is removed."
+          ].join("\n")
+      },
+      "cask-quarantine": {
+        summary: "Targeted cleanup for quarantined helper binaries inside Homebrew Casks.",
+        body: () =>
+          [
+            "Detects nested helper binaries named `rg` under Homebrew's Caskroom,",
+            "including Codex's bundled helper at:",
+            "  $(brew --prefix)/Caskroom/codex/<version>/codex-path/rg",
+            "",
+            "Apply removes only this xattr from matching Homebrew Cask helpers:",
+            "  /usr/bin/xattr -d com.apple.quarantine <helper>",
+            "",
+            "This is intentionally narrow: it does not disable Gatekeeper and does",
+            "not recursively strip quarantine from Downloads or /Applications. Nightly",
+            "runs the same sweep after `brew upgrade --cask` because a cask update can",
+            "replace the helper binary and reintroduce the xattr."
+          ].join("\n")
+      },
+      apply: {
+        summary: "What --apply changes and what stays manual.",
+        body: () =>
+          [
+            "  --dry-run              print planned apply commands without changing state",
+            "  --apply                run automated hardening where safe",
+            "  --skip filevault       skip one module; repeatable",
+            "  --ssh-mode disable     turn Remote Login off instead of writing a drop-in",
+            "  --ssh-mode harden      keep SSH on but apply the hardening drop-in",
+            "",
+            "FileVault enablement is always printed as a manual command. Cask",
+            "quarantine cleanup is automated but only targets nested helpers under",
+            "Homebrew's Caskroom."
+          ].join("\n")
+      },
+      examples: {
+        summary: "Common security invocations.",
+        body: () =>
+          [
+            "  ./bin/security",
+            "  ./bin/security --dry-run --apply",
+            "  ./bin/security --apply --ssh-mode disable",
+            "  ./bin/security --apply --skip filevault",
+            "  ./bin/security --apply --skip filevault --skip firewall --skip ssh-hardening",
+            "  ./bin/security --help ssh-hardening"
           ].join("\n")
       }
     }

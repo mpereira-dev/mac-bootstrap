@@ -29,6 +29,7 @@ test("printHelp prints a command overview and its topics", () => {
   const code = printHelp("bootstrap", [], { logger });
   assert.equal(code, 0);
   assert.match(logger.text(), /Install the owner-approved baseline/);
+  assert.match(logger.text(), /Usage: \.\/bin\/bootstrap/);
   assert.match(logger.text(), /More help:/);
   assert.match(logger.text(), /profiles/);
 });
@@ -67,6 +68,72 @@ test("migrate help explains detection and removal", () => {
   const removal = new TestLogger();
   printHelp("migrate", ["removal"], { logger: removal });
   assert.match(removal.text(), /install the managed version first/);
+
+  const tools = new TestLogger();
+  printHelp("migrate", ["tools"], { logger: tools });
+  assert.match(tools.text(), /brew pnpm aws cdk node/);
+});
+
+test("security help has nested operational topics", () => {
+  const root = new TestLogger();
+  const code = printHelp("security", [], { logger: root });
+  assert.equal(code, 0);
+  assert.match(root.text(), /macOS security hardening/);
+  assert.match(root.text(), /modules/);
+  assert.match(root.text(), /filevault/);
+  assert.match(root.text(), /ssh-hardening/);
+  assert.match(root.text(), /cask-quarantine/);
+
+  const filevault = new TestLogger();
+  printHelp("security", ["filevault"], { logger: filevault });
+  assert.match(filevault.text(), /recovery key/);
+  assert.match(filevault.text(), /authrestart/);
+
+  const firewall = new TestLogger();
+  printHelp("security", ["firewall"], { logger: firewall });
+  assert.match(firewall.text(), /stealth/);
+  assert.match(firewall.text(), /setblockall/);
+
+  const ssh = new TestLogger();
+  printHelp("security", ["ssh-hardening"], { logger: ssh });
+  assert.match(ssh.text(), /Remote Login off/);
+  assert.match(ssh.text(), /sshd -t/);
+
+  const apply = new TestLogger();
+  printHelp("security", ["apply"], { logger: apply });
+  assert.match(apply.text(), /--ssh-mode disable/);
+  assert.match(apply.text(), /FileVault enablement is always/);
+
+  const quarantine = new TestLogger();
+  printHelp("security", ["cask-quarantine"], { logger: quarantine });
+  assert.match(quarantine.text(), /codex-path\/rg/);
+  assert.match(quarantine.text(), /Homebrew's Caskroom/);
+});
+
+test("all commands expose operational help topics", () => {
+  for (const [command, topic, expected] of [
+    ["bootstrap", "flags", /--profiles/],
+    ["bootstrap", "exit-codes", /network is unavailable/],
+    ["doctor", "profiles", /saved profile selection/],
+    ["doctor", "fixes", /volta install node@24/],
+    ["nightly", "logs", /mac-bootstrap-nightly.log/],
+    ["nightly", "exit-codes", /maintenance commands failed/],
+    ["migrate", "examples", /\.\/bin\/migrate --apply aws/]
+  ]) {
+    const logger = new TestLogger();
+    const code = printHelp(command, [topic], { logger });
+    assert.equal(code, 0);
+    assert.match(logger.text(), expected);
+  }
+});
+
+test("command overviews use repo-local bin paths in usage", () => {
+  for (const command of ["bootstrap", "doctor", "nightly", "migrate", "security"]) {
+    const logger = new TestLogger();
+    const code = printHelp(command, [], { logger });
+    assert.equal(code, 0);
+    assert.match(logger.text(), new RegExp(`Usage: \\.\\/bin\\/${command}`));
+  }
 });
 
 test("printHelp renders the preset table", () => {

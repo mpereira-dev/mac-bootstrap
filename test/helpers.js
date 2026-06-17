@@ -23,14 +23,16 @@ export class FakeRunner {
     failSteps = new Map(),
     xcodeInstalled = true,
     brewInstalled = true,
-    nodeVersion = "v24.0.0"
+    nodeVersion = "v24.0.0",
+    homebrewPrefix
   } = {}) {
+    this.homebrewPrefix = homebrewPrefix || fs.mkdtempSync(path.join(os.tmpdir(), "mac-bootstrap-brew-"));
     this.formulae = new Set(formulae);
     this.casks = new Set(casks);
     this.commands = {
       claude: "1.0.0",
       codex: "1.0.0",
-      antigravity: "1.0.0",
+      agy: "1.0.0",
       volta: "2.0.0",
       npm: "10.9.8",
       corepack: "0.34.0",
@@ -46,7 +48,7 @@ export class FakeRunner {
     this.calls = [];
   }
 
-  run(command, args = []) {
+  run(command, args = [], options = {}) {
     this.calls.push([command, ...args]);
     const joined = [command, ...args].join(" ");
     if (this.failSteps.has(joined)) {
@@ -114,6 +116,11 @@ export class FakeRunner {
   }
 
   runBrew(args) {
+    if (args[0] === "list" && args[1] === "--formula" && args[2] === "--versions" && args[3]) {
+      return this.formulae.has(args[3])
+        ? { status: 0, stdout: `${args[3]} 1.0.0\n`, stderr: "" }
+        : { status: 1, stdout: "", stderr: "not installed" };
+    }
     if (args[0] === "list" && args[1] === "--formula" && args[2]) {
       return this.formulae.has(args[2])
         ? { status: 0, stdout: `${args[2]}\n`, stderr: "" }
@@ -121,6 +128,11 @@ export class FakeRunner {
     }
     if (args[0] === "list" && args[1] === "--versions") {
       return { status: 0, stdout: [...this.formulae].sort().map((name) => `${name} 1.0.0`).join("\n"), stderr: "" };
+    }
+    if (args[0] === "list" && args[1] === "--cask" && args[2] === "--versions" && args[3]) {
+      return this.casks.has(args[3])
+        ? { status: 0, stdout: `${args[3]} 1.0.0\n`, stderr: "" }
+        : { status: 1, stdout: "", stderr: "not installed" };
     }
     if (args[0] === "list" && args[1] === "--cask" && args[2] === "--versions") {
       return { status: 0, stdout: [...this.casks].sort().map((name) => `${name} 1.0.0`).join("\n"), stderr: "" };

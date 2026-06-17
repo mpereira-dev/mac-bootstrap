@@ -59,6 +59,10 @@ export async function suggest({ current } = {}) {
 export async function apply({ runner, logger = console, dryRun = false } = {}) {
   if (!runner) throw new Error("firewall.apply: runner is required");
   const before = await detect({ runner });
+  if (!before.ok) {
+    logger.log(`firewall: cannot determine state — ${before.error || "detect failed"}`);
+    return { changed: false, error: before.error || "detect failed" };
+  }
   if (before.ok && before.enabled && before.stealth) {
     logger.log("firewall: already enabled with stealth — noop");
     return { changed: false };

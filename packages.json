@@ -16,7 +16,7 @@
       "defaultEnabled": true
     },
     "ai": {
-      "description": "AI CLI providers (claude, codex, antigravity).",
+      "description": "AI CLI providers (claude, codex, agy).",
       "defaultEnabled": false
     },
     "mobile": {
@@ -143,8 +143,8 @@
     {
       "name": "antigravity-cli",
       "profile": "ai",
-      "command": "antigravity",
-      "why": "Antigravity CLI."
+      "command": "agy",
+      "why": "Google Antigravity CLI. The Homebrew cask is named antigravity-cli; the official command is agy."
     },
     {
       "name": "android-studio",

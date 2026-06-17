@@ -19,6 +19,45 @@ test("doctor passes after isolated bootstrap", async () => {
   assert.match(logger.text(), /ok - formula gh/);
 });
 
+test("doctor streams checks before later package checks run", async () => {
+  const home = tempHome();
+  writeSavedSelections(home, ["core"]);
+  fs.mkdirSync(path.join(home, "Library", "LaunchAgents"), { recursive: true });
+  fs.mkdirSync(path.join(home, "Library", "Logs"), { recursive: true });
+  fs.writeFileSync(path.join(home, ".zshrc"), "# mac-bootstrap managed baseline\n");
+  const manifest = loadManifest();
+  const logger = new TestLogger();
+  class ObservingRunner extends FakeRunner {
+    run(command, args = [], options = {}) {
+      if (command.endsWith("/brew") && args.at(-1) === "git") {
+        assert.match(logger.text(), /ok - Xcode CLI tools/);
+      }
+      return super.run(command, args, options);
+    }
+  }
+  const runner = new ObservingRunner({
+    formulae: manifest.formulae
+      .filter((formula) => formula.profile === "core")
+      .map((formula) => formula.name)
+  });
+  const exitCode = await doctor({ home, runner, logger });
+  assert.equal(exitCode, 0, logger.text());
+});
+
+test("doctor checks CLI casks by usable command", async () => {
+  const home = tempHome();
+  writeSavedSelections(home, ["ai"]);
+  fs.mkdirSync(path.join(home, "Library", "LaunchAgents"), { recursive: true });
+  fs.mkdirSync(path.join(home, "Library", "Logs"), { recursive: true });
+  fs.writeFileSync(path.join(home, ".zshrc"), "# mac-bootstrap managed baseline\n");
+  const runner = new FakeRunner();
+  const logger = new TestLogger();
+  const exitCode = await doctor({ home, runner, logger });
+  assert.equal(exitCode, 0, logger.text());
+  assert.match(logger.text(), /ok - command agy/);
+  assert.doesNotMatch(logger.text(), /cask antigravity-cli/);
+});
+
 test("doctor fails on expected version mismatch", async () => {
   const home = tempHome();
   const manifest = loadManifest();

@@ -1,72 +1,93 @@
 #!/usr/bin/env node
-// Security CLI — detect / suggest / apply across all three modules.
-//   ./bin/security              # detect + suggest (read-only)
-//   ./bin/security --apply      # apply suggestions (will require sudo for firewall + ssh)
-//   ./bin/security --dry-run    # show what would change
-//   ./bin/security --apply --skip filevault  # skip a specific module
-import { detectAll, suggestAll, MODULES, filevault, firewall, sshHardening } from "../src/security/index.js";
-import { createCommandRunner } from "../src/command-runner.js";
+import { CommandRunner } from "../src/command-runner.js";
+import { printHelp } from "../src/help.js";
+import { ConsoleLogger } from "../src/logger.js";
+import { detectAll, MODULES } from "../src/security/index.js";
 
 function parseArgs(argv) {
-  const out = { apply: false, dryRun: false, skip: new Set(), sshMode: "harden" };
+  const out = { apply: false, dryRun: false, skip: new Set(), sshMode: "harden", help: false, helpTopics: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--apply") out.apply = true;
     else if (a === "--dry-run") out.dryRun = true;
-    else if (a === "--skip") out.skip.add(argv[++i]);
-    else if (a === "--ssh-mode") out.sshMode = argv[++i]; // "harden" | "disable"
+    else if (a === "--skip") out.skip.add(requireValue(a, argv[++i]));
+    else if (a.startsWith("--skip=")) out.skip.add(a.slice("--skip=".length));
+    else if (a === "--ssh-mode") out.sshMode = requireValue(a, argv[++i]);
+    else if (a.startsWith("--ssh-mode=")) out.sshMode = a.slice("--ssh-mode=".length);
     else if (a === "--help" || a === "-h") {
-      console.log(`Usage: ./bin/security [--apply] [--dry-run] [--skip <module>] [--ssh-mode harden|disable]
-  Modules: filevault, firewall, ssh-hardening
-  Default (no args): detect + suggest (read-only).
-  Default ssh-mode: harden (writes /etc/ssh/sshd_config.d/99-mac-bootstrap.conf).
-  Use --ssh-mode disable to turn off Remote Login entirely (recommended if you don't use SSH).`);
-      process.exit(0);
+      out.help = true;
+      out.helpTopics = argv.slice(i + 1);
+      break;
+    } else {
+      throw new Error(`Unknown argument: ${a}`);
+    }
+  }
+  if (!["harden", "disable"].includes(out.sshMode)) {
+    throw new Error("--ssh-mode must be harden or disable");
+  }
+  for (const moduleName of out.skip) {
+    if (!MODULES.some((module) => module.name === moduleName)) {
+      throw new Error(`Unknown security module: ${moduleName}`);
     }
   }
   return out;
 }
 
-const args = parseArgs(process.argv.slice(2));
-const runner = createCommandRunner();
-
-console.log("=== detect ===");
-const states = await detectAll({ runner });
-for (const [name, state] of Object.entries(states)) {
-  console.log(`  ${name}: ${JSON.stringify(state)}`);
+function requireValue(flag, value) {
+  if (!value) {
+    throw new Error(`${flag} requires a value`);
+  }
+  return value;
 }
 
-console.log("\n=== suggest ===");
-const suggestions = await suggestAll({ runner });
-for (const [name, s] of Object.entries(suggestions)) {
-  console.log(`  ${name}: ${s.advice}`);
-  if (s.command) console.log(`    cmd: ${s.command}`);
-  if (s.commands) for (const c of s.commands) console.log(`    cmd: ${c}`);
-  if (s.options) {
-    for (const o of s.options) {
-      console.log(`    option: ${o.label}`);
-      if (o.command) console.log(`      ${o.command}`);
-      if (o.commands) for (const c of o.commands) console.log(`      ${c}`);
+const logger = new ConsoleLogger();
+try {
+  const args = parseArgs(process.argv.slice(2));
+  if (args.help) {
+    process.exit(printHelp("security", args.helpTopics));
+  }
+  const runner = new CommandRunner({ logger });
+
+  logger.log("=== detect ===");
+  const states = await detectAll({ runner });
+  for (const [name, state] of Object.entries(states)) {
+    logger.log(`  ${name}: ${JSON.stringify(state)}`);
+  }
+
+  logger.log("\n=== suggest ===");
+  for (const module of MODULES) {
+    const name = module.name;
+    const s = await module.suggest({ current: states[name] });
+    logger.log(`  ${name}: ${s.advice}`);
+    if (s.command) logger.log(`    cmd: ${s.command}`);
+    if (s.commands) for (const c of s.commands) logger.log(`    cmd: ${c}`);
+    if (s.options) {
+      for (const o of s.options) {
+        logger.log(`    option: ${o.label}`);
+        if (o.command) logger.log(`      ${o.command}`);
+        if (o.commands) for (const c of o.commands) logger.log(`      ${c}`);
+      }
     }
+    if (s.notes) for (const n of s.notes) logger.log(`    note: ${n}`);
   }
-  if (s.notes) for (const n of s.notes) console.log(`    note: ${n}`);
-}
 
-if (!args.apply) {
-  console.log("\n(read-only run; pass --apply to apply suggestions)");
-  process.exit(0);
-}
+  if (!args.apply) {
+    logger.log(args.dryRun
+      ? "\n(read-only run; --dry-run only affects --apply)"
+      : "\n(read-only run; pass --apply to apply suggestions)");
+    process.exit(0);
+  }
 
-console.log("\n=== apply ===");
-const targets = MODULES.filter((m) => !args.skip.has(m.name));
-for (const m of targets) {
-  console.log(`-> ${m.name}`);
-  const opts = { runner, dryRun: args.dryRun, logger: console };
-  if (m.name === "ssh-hardening") opts.mode = args.sshMode;
-  try {
+  logger.log("\n=== apply ===");
+  const targets = MODULES.filter((m) => !args.skip.has(m.name));
+  for (const m of targets) {
+    logger.log(`-> ${m.name}`);
+    const opts = { runner, dryRun: args.dryRun, logger };
+    if (m.name === "ssh-hardening") opts.mode = args.sshMode;
     const r = await m.apply(opts);
-    console.log(`   result: ${JSON.stringify(r)}`);
-  } catch (e) {
-    console.log(`   error: ${e.message}`);
+    logger.log(`   result: ${JSON.stringify(r)}`);
   }
+} catch (error) {
+  logger.error(error.message);
+  process.exit(1);
 }
