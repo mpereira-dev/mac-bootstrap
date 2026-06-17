@@ -29,7 +29,7 @@ test("printHelp prints a command overview and its topics", () => {
   const code = printHelp("bootstrap", [], { logger });
   assert.equal(code, 0);
   assert.match(logger.text(), /Install the owner-approved baseline/);
-  assert.match(logger.text(), /Usage: \.\/bin\/bootstrap/);
+  assert.match(logger.text(), /Usage: mac-bootstrap bootstrap/);
   assert.match(logger.text(), /More help:/);
   assert.match(logger.text(), /profiles/);
 });
@@ -118,7 +118,7 @@ test("all commands expose operational help topics", () => {
     ["doctor", "fixes", /volta install node@24/],
     ["nightly", "logs", /mac-bootstrap-nightly.log/],
     ["nightly", "exit-codes", /maintenance commands failed/],
-    ["migrate", "examples", /\.\/bin\/migrate --apply aws/]
+    ["migrate", "examples", /mac-bootstrap migrate --apply aws/]
   ]) {
     const logger = new TestLogger();
     const code = printHelp(command, [topic], { logger });
@@ -127,12 +127,12 @@ test("all commands expose operational help topics", () => {
   }
 });
 
-test("command overviews use repo-local bin paths in usage", () => {
+test("command overviews use canonical mac-bootstrap subcommands in usage", () => {
   for (const command of ["bootstrap", "doctor", "nightly", "migrate", "security"]) {
     const logger = new TestLogger();
     const code = printHelp(command, [], { logger });
     assert.equal(code, 0);
-    assert.match(logger.text(), new RegExp(`Usage: \\.\\/bin\\/${command}`));
+    assert.match(logger.text(), new RegExp(`Usage: mac-bootstrap ${command}`));
   }
 });
 

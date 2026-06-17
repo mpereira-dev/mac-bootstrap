@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ConsoleLogger, FileLogger, MemoryLogger, formatLogLine } from "../src/logger.js";
+import { ConsoleLogger, FileLogger, MemoryLogger, PlainConsoleLogger, formatLogLine } from "../src/logger.js";
 import { tempHome } from "./helpers.js";
 import fs from "node:fs";
 import path from "node:path";
@@ -32,6 +32,16 @@ test("ConsoleLogger sends colored info to stdout and warnings/errors to stderr",
   assert.match(stdout.text, /\x1b\[32m\[INFO\]\x1b\[0m ready/);
   assert.match(stderr.text, /\x1b\[33m\[WARN\]\x1b\[0m check this/);
   assert.match(stderr.text, /\x1b\[31m\[ERROR\]\x1b\[0m failed/);
+});
+
+test("PlainConsoleLogger prints help text without structured labels", () => {
+  const stdout = { data: "", write(chunk) { this.data += chunk; } };
+  const stderr = { data: "", write(chunk) { this.data += chunk; } };
+  const logger = new PlainConsoleLogger({ stdout, stderr });
+  logger.log("Usage: mac-bootstrap <command>");
+  logger.error("Unknown topic");
+  assert.equal(stdout.data, "Usage: mac-bootstrap <command>\n");
+  assert.equal(stderr.data, "Unknown topic\n");
 });
 
 test("MemoryLogger and FileLogger keep structured labels without ANSI color", () => {

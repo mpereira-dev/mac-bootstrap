@@ -17,6 +17,7 @@ export async function bootstrap({
   manifestPath,
   runner,
   logger = console,
+  promptLogger = logger,
   networkCheck = checkNetwork,
   prompt,
   interactive = Boolean(process.stdin && process.stdin.isTTY)
@@ -48,6 +49,7 @@ export async function bootstrap({
     reconfigure,
     home,
     logger,
+    promptLogger,
     prompt,
     interactive
   });
@@ -128,6 +130,7 @@ async function resolveProfileSelection({
   reconfigure,
   home,
   logger,
+  promptLogger,
   prompt,
   interactive
 }) {
@@ -156,7 +159,7 @@ async function resolveProfileSelection({
   const promptDefaults = saved ? saved.profiles : defaults;
   let picked;
   if (typeof prompt === "function" || !interactive) {
-    picked = await pickProfiles({ manifest: fullManifest, logger, defaults: promptDefaults, prompt });
+    picked = await pickProfiles({ manifest: fullManifest, logger: promptLogger, defaults: promptDefaults, prompt });
   } else {
     picked = await pickProfilesInteractive({ manifest: fullManifest, defaults: promptDefaults });
   }

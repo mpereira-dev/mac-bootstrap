@@ -1,23 +1,5 @@
-#!/usr/bin/env node
-import { parseArgs } from "../src/args.js";
-import { bootstrap } from "../src/bootstrap.js";
-import { CommandRunner } from "../src/command-runner.js";
-import { printHelp } from "../src/help.js";
-import { ConsoleLogger } from "../src/logger.js";
-
-const logger = new ConsoleLogger();
-try {
-  const options = parseArgs(process.argv.slice(2));
-  if (options.help) {
-    process.exit(printHelp("bootstrap", options.helpTopics));
-  }
-  const exitCode = await bootstrap({
-    ...options,
-    runner: new CommandRunner({ dryRun: options.dryRun, logger }),
-    logger
-  });
-  process.exit(exitCode);
-} catch (error) {
-  logger.error(error.message);
-  process.exit(1);
-}
+#!/bin/sh
+script_dir=$(
+  CDPATH= cd -- "$(dirname -- "$0")" && pwd
+) || exit 1
+exec "$script_dir/mac-bootstrap" bootstrap "$@"

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.0] - 2026-06-17
+### Added
+- `./bin/mac-bootstrap` is now the canonical single operator surface with `bootstrap`, `doctor`, `nightly`, `migrate`, `security`, and deep `help` subcommands.
+- The outer `mac-bootstrap` entrypoint is POSIX shell, so `bootstrap` can cold-start Homebrew, Volta, and Node 24 before handing off to the Node CLI.
+- E2E coverage now verifies the single command, legacy shims, and no-Node bootstrap dry-run behavior.
+
+### Changed
+- Existing `./bin/bootstrap`, `./bin/doctor`, `./bin/nightly`, `./bin/migrate`, and `./bin/security` are compatibility shims into `mac-bootstrap <command>`.
+- Help menus and interactive selection menus now print plain usage text instead of structured `[INFO]` log labels.
+- README and command help now prefer `mac-bootstrap <command>` examples.
+
 ## [0.4.0] - 2026-06-17
 ### Added
 - `./bin/security` is now a first-class CLI with deep help topics and an npm bin entrypoint.

@@ -1,0 +1,135 @@
+#!/bin/sh
+set -u
+
+PROJECT_NAME="mac-bootstrap"
+DEFAULT_HOMEBREW_PREFIX="/opt/homebrew"
+DEFAULT_NODE_MAJOR="24"
+
+script_dir=$(
+  CDPATH= cd -- "$(dirname -- "$0")" && pwd
+) || exit 1
+repo_root=$(
+  CDPATH= cd -- "$script_dir/.." && pwd
+) || exit 1
+node_cli="$repo_root/src/cli.js"
+
+log_info() {
+  printf '[INFO] %s\n' "$*"
+}
+
+log_error() {
+  printf '[ERROR] %s\n' "$*" >&2
+}
+
+has_arg() {
+  needle=$1
+  shift
+  for arg do
+    if [ "$arg" = "$needle" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+is_bootstrap_command() {
+  case "${1-}" in
+    ""|bootstrap|--*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+exec_node_cli() {
+  if command -v node >/dev/null 2>&1; then
+    exec node "$node_cli" "$@"
+  fi
+}
+
+print_no_node_help() {
+  cat <<'EOF'
+mac-bootstrap
+Single operator surface for deterministic macOS bootstrap and upkeep.
+
+Usage: mac-bootstrap <command> [args]
+
+Commands:
+  bootstrap  Install the owner-approved baseline
+  doctor     Verify the laptop matches the expected baseline
+  nightly    Run unattended maintenance
+  migrate    Move unmanaged tools onto managed installs
+  security   Detect and apply local security hardening
+
+Node.js is not currently on PATH. Run:
+  ./bin/mac-bootstrap bootstrap
+
+That command installs the minimal Homebrew + Volta + Node runtime first, then
+hands off to the full Node-based CLI.
+EOF
+}
+
+install_bootstrap_node_runtime() {
+  homebrew_prefix=${HOMEBREW_PREFIX:-$DEFAULT_HOMEBREW_PREFIX}
+  node_major=${MAC_BOOTSTRAP_NODE_MAJOR:-$DEFAULT_NODE_MAJOR}
+  brew_bin="$homebrew_prefix/bin/brew"
+
+  if has_arg "--dry-run" "$@"; then
+    log_info "Node.js is not on PATH."
+    log_info "[dry-run] would install Homebrew at $homebrew_prefix if missing"
+    log_info "[dry-run] would install Volta with Homebrew if missing"
+    log_info "[dry-run] would install Node $node_major with Volta"
+    log_info "[dry-run] would re-run the full Node CLI afterwards"
+    return 0
+  fi
+
+  if ! xcode-select -p >/dev/null 2>&1; then
+    log_info "Xcode Command Line Tools are required before Homebrew can install."
+    log_info "Starting installer; re-run this command after the installer finishes."
+    xcode-select --install >/dev/null 2>&1 || true
+    return 2
+  fi
+
+  if [ ! -x "$brew_bin" ]; then
+    log_info "Installing Homebrew at $homebrew_prefix."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || return 1
+  fi
+
+  if [ -x "$brew_bin" ]; then
+    eval "$("$brew_bin" shellenv)"
+  fi
+
+  export VOLTA_HOME="${VOLTA_HOME:-$HOME/.volta}"
+  export PATH="$VOLTA_HOME/bin:$PATH"
+
+  if ! command -v volta >/dev/null 2>&1; then
+    log_info "Installing Volta."
+    "$brew_bin" install volta || return 1
+  fi
+
+  log_info "Installing Node $node_major with Volta."
+  volta install "node@$node_major" || return 1
+}
+
+exec_node_cli "$@"
+
+if [ "${1-}" = "--help" ] || [ "${1-}" = "-h" ] || [ "${1-}" = "help" ]; then
+  print_no_node_help
+  exit 0
+fi
+
+if is_bootstrap_command "${1-}"; then
+  install_bootstrap_node_runtime "$@"
+  code=$?
+  if [ "$code" -ne 0 ]; then
+    exit "$code"
+  fi
+  if has_arg "--dry-run" "$@"; then
+    exit 0
+  fi
+  exec_node_cli "$@"
+  log_error "Node.js is still not available after bootstrap runtime install."
+  exit 127
+fi
+
+log_error "Node.js is required for '$PROJECT_NAME ${1-}'."
+log_error "Run ./bin/mac-bootstrap bootstrap first."
+exit 127

@@ -9,11 +9,26 @@ This repo is Apple Silicon only. Homebrew is expected at `/opt/homebrew`.
 Prerequisites are macOS and network access. From a fresh checkout:
 
 ```sh
-./bin/bootstrap --dry-run
-./bin/bootstrap
+./bin/mac-bootstrap bootstrap --dry-run
+./bin/mac-bootstrap bootstrap
 ```
 
-`bin/bootstrap` ensures Xcode CLI tools, Homebrew at `/opt/homebrew`, the curated Homebrew formulae and casks in `packages.json`, Volta-managed Node `24`, Corepack enabled for per-project `pnpm`/`yarn`, uv-managed Python `3.12`, minimal zsh shell setup, and `~/Library/LaunchAgents` plus `~/Library/Logs`.
+`bin/mac-bootstrap` is a shell-safe cold-start wrapper. If Node is not available
+yet, `bootstrap` installs the minimum Homebrew + Volta + Node `24` runtime first,
+then hands off to the full Node CLI. `bootstrap` ensures Xcode CLI tools,
+Homebrew at `/opt/homebrew`, the curated Homebrew formulae and casks in
+`packages.json`, Volta-managed Node `24`, Corepack enabled for per-project
+`pnpm`/`yarn`, uv-managed Python `3.12`, minimal zsh shell setup, and
+`~/Library/LaunchAgents` plus `~/Library/Logs`.
+
+The canonical operator surface is:
+
+```sh
+./bin/mac-bootstrap <command> [args]
+```
+
+Existing shortcuts such as `./bin/bootstrap`, `./bin/doctor`, and
+`./bin/security` remain as compatibility shims.
 
 ## Profiles
 
@@ -27,24 +42,24 @@ Packages are grouped by profiles in `packages.json`:
 - `network`: Tailscale. Off by default.
 - `cloud`: AWS CLI, CDK, and Terraform. Off by default.
 
-On a fresh laptop, `./bin/bootstrap` opens an arrow-key picker for the profiles to enable, saves the selection to `~/.mac-bootstrap/profiles.json`, and reuses it on later runs. Controls: `↑/↓` (or `j/k`) navigate, `space` toggles the highlighted row, `a` toggles all, `enter` confirms, `q` / `esc` / `ctrl-c` cancel. Every profile is offered; off-by-default ones just start unchecked.
+On a fresh laptop, `./bin/mac-bootstrap bootstrap` opens an arrow-key picker for the profiles to enable, saves the selection to `~/.mac-bootstrap/profiles.json`, and reuses it on later runs. Controls: `↑/↓` (or `j/k`) navigate, `space` toggles the highlighted row, `a` toggles all, `enter` confirms, `q` / `esc` / `ctrl-c` cancel. Every profile is offered; off-by-default ones just start unchecked.
 
 In non-TTY contexts (CI, redirected stdin) the picker falls back to a per-profile yes/no prompt automatically.
 
 Non-interactive flags:
 
 ```sh
-./bin/bootstrap --yes
-./bin/bootstrap --preset ranger
-./bin/bootstrap --profiles=core,node,cloud
-./bin/bootstrap --reconfigure
+./bin/mac-bootstrap bootstrap --yes
+./bin/mac-bootstrap bootstrap --preset ranger
+./bin/mac-bootstrap bootstrap --profiles=core,node,cloud
+./bin/mac-bootstrap bootstrap --reconfigure
 ```
 
 `--yes` skips the prompt and uses the saved selection, or the manifest defaults when no saved file exists. `--profiles=A,B` installs exactly those profiles and saves the selection. `--reconfigure` ignores the saved selection and prompts again.
 
 ### Presets
 
-Presets are one-word codenames that expand to a set of profiles, so you get the same laptop with one word on every machine. `--preset NAME` behaves like `--profiles` (no prompt, selection saved). Run `./bin/bootstrap --help presets` for the table.
+Presets are one-word codenames that expand to a set of profiles, so you get the same laptop with one word on every machine. `--preset NAME` behaves like `--profiles` (no prompt, selection saved). Run `./bin/mac-bootstrap bootstrap --help presets` for the table.
 
 | Preset | Profiles | Purpose |
 |---|---|---|
@@ -56,9 +71,9 @@ Presets are one-word codenames that expand to a set of profiles, so you get the 
 
 Edit the `presets` block in `packages.json` to rename or add your own.
 
-Run `./bin/bootstrap --help` for nested, topic-based help: `--help profiles` prints the profile table, and every command supports `--help <topic> [subtopic]` (e.g. `./bin/migrate --help detection`).
+Run `./bin/mac-bootstrap --help` for the command list. Every command supports nested, topic-based help: `--help profiles` prints the profile table, and `help <command> <topic> [subtopic]` works too (e.g. `./bin/mac-bootstrap help migrate detection`).
 
-`bin/doctor` and `bin/nightly` read the same saved selection. If no saved selection exists, they use the manifest defaults.
+`doctor` and `nightly` read the same saved selection. If no saved selection exists, they use the manifest defaults.
 
 The package manifest is intentionally curated. It is seeded from the current laptop, but it includes only packages that are expected to be first-class development tools rather than every transitive dependency.
 
@@ -74,18 +89,18 @@ The package manifest is intentionally curated. It is seeded from the current lap
 
 `tools/provenance.sh` audits how each tool was actually installed (Homebrew, Volta, Corepack, a standalone pnpm/npm global, a macOS `.pkg`, or a manual drop) and labels it `OK` / `MIGRATE` / `UNMANAGED`. It never changes anything.
 
-`bin/migrate` acts on that audit:
+`migrate` acts on that audit:
 
 ```sh
-./bin/migrate aws node            # plan only — show what would change
-./bin/migrate --apply aws node    # install the managed version, then remove the old one
+./bin/mac-bootstrap migrate aws node            # plan only — show what would change
+./bin/mac-bootstrap migrate --apply aws node    # install the managed version, then remove the old one
 ```
 
 Plan-only by default. `--apply` is the confirmation — it installs the mac-bootstrap-managed version first (idempotent), and only then removes the old copy, with no second prompt. Removals that need human judgement — `.pkg` receipts, version placeholders, manual `/usr/local` drops — are printed for you to handle rather than run automatically. With no tool arguments it audits the default set (`brew pnpm aws cdk node`).
 
 ## Nightly Upkeep
 
-`bin/nightly` is designed for launchd and runs these steps:
+`nightly` is designed for launchd and runs these steps:
 
 ```sh
 brew update
@@ -103,7 +118,7 @@ The launchd template lives at `launchd/com.mac-bootstrap.nightly.plist`. It is i
 ## Verify Health
 
 ```sh
-./bin/doctor
+./bin/mac-bootstrap doctor
 ```
 
 Doctor checks expected directories, the launchd template, the launchd job if the plist has been installed, shell baseline, Xcode CLI tools, enabled Homebrew formulae, CLI commands provided by enabled casks, GUI casks without commands, quarantined nested helpers in enabled Homebrew Casks, Volta, and the expected major Node version when the `node` profile is enabled. It exits non-zero on drift.
@@ -111,11 +126,11 @@ Doctor checks expected directories, the launchd template, the launchd job if the
 ## Security Hardening
 
 ```sh
-./bin/security
-./bin/security --dry-run --apply
+./bin/mac-bootstrap security
+./bin/mac-bootstrap security --dry-run --apply
 ```
 
-Security is read-only by default: it detects and suggests hardening for FileVault, the macOS Application Firewall, Remote Login / SSH, and quarantined nested helper binaries inside Homebrew Casks. `--apply` performs the automated steps where safe; FileVault enablement remains manual because the recovery key must be captured and stored immediately. The Cask quarantine cleanup only targets helper binaries under Homebrew's Caskroom, not `~/Downloads` or `/Applications` broadly. Use `./bin/security --help modules` or `./bin/security --help cask-quarantine` for the deeper menu.
+Security is read-only by default: it detects and suggests hardening for FileVault, the macOS Application Firewall, Remote Login / SSH, and quarantined nested helper binaries inside Homebrew Casks. `--apply` performs the automated steps where safe; FileVault enablement remains manual because the recovery key must be captured and stored immediately. The Cask quarantine cleanup only targets helper binaries under Homebrew's Caskroom, not `~/Downloads` or `/Applications` broadly. Use `./bin/mac-bootstrap security --help modules` or `./bin/mac-bootstrap security --help cask-quarantine` for the deeper menu.
 
 ## Shell Environment
 
@@ -123,7 +138,7 @@ Security is read-only by default: it detects and suggests hardening for FileVaul
 
 ## Extend
 
-Edit `packages.json` for formulae, casks, Node default, and npm-global pins. Add tests for each behavioral change before relying on it for unattended maintenance. Use `./bin/bootstrap --dry-run`, `./bin/nightly --dry-run`, and `./bin/doctor --dry-run` to inspect planned actions without changing the machine.
+Edit `packages.json` for formulae, casks, Node default, and npm-global pins. Add tests for each behavioral change before relying on it for unattended maintenance. Use `./bin/mac-bootstrap bootstrap --dry-run`, `./bin/mac-bootstrap nightly --dry-run`, and `./bin/mac-bootstrap doctor --dry-run` to inspect planned actions without changing the machine.
 
 ## Test
 

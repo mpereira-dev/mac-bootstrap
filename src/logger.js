@@ -58,6 +58,21 @@ export class ConsoleLogger {
   }
 }
 
+export class PlainConsoleLogger {
+  constructor({ stdout = process.stdout, stderr = process.stderr } = {}) {
+    this.stdout = stdout;
+    this.stderr = stderr;
+  }
+
+  log(message = "") {
+    this.stdout.write(`${message}\n`);
+  }
+
+  error(message = "") {
+    this.stderr.write(`${message}\n`);
+  }
+}
+
 export class MemoryLogger {
   constructor() {
     this.lines = [];

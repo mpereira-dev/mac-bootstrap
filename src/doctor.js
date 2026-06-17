@@ -156,6 +156,6 @@ async function checkCaskQuarantine(runner, casks) {
     ok: current.ok,
     detail: current.ok
       ? current.detail
-      : `${current.quarantined?.length || 0} quarantined; run ./bin/security --apply --skip filevault --skip firewall --skip ssh-hardening`
+      : `${current.quarantined?.length || 0} quarantined; run mac-bootstrap security --apply --skip filevault --skip firewall --skip ssh-hardening`
   };
 }

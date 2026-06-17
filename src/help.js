@@ -6,11 +6,11 @@ import { packagesForProfile } from "./prompt.js";
 // Bin name a topic path is reached through, used in the "run this for detail"
 // footer so copy/paste works regardless of which command you are in.
 const BIN = {
-  bootstrap: "./bin/bootstrap",
-  doctor: "./bin/doctor",
-  nightly: "./bin/nightly",
-  migrate: "./bin/migrate",
-  security: "./bin/security"
+  bootstrap: "mac-bootstrap bootstrap",
+  doctor: "mac-bootstrap doctor",
+  nightly: "mac-bootstrap nightly",
+  migrate: "mac-bootstrap migrate",
+  security: "mac-bootstrap security"
 };
 
 function leaf(name) {
@@ -75,7 +75,7 @@ export function renderPresetTable(manifest) {
 const TREES = {
   bootstrap: {
     summary: "Install the owner-approved baseline on an Apple Silicon macOS laptop.",
-    usage: "./bin/bootstrap [--dry-run] [--yes] [--reconfigure] [--preset NAME] [--profiles=A,B] [--home PATH] [--packages PATH]",
+    usage: "mac-bootstrap bootstrap [--dry-run] [--yes] [--reconfigure] [--preset NAME] [--profiles=A,B] [--home PATH] [--packages PATH]",
     body: () =>
       [
         "Idempotent: a re-run installs only what is missing, so it is safe to run",
@@ -121,7 +121,7 @@ const TREES = {
           [
             renderPresetTable(ctx.manifest),
             "",
-            "Use one with --preset, e.g. `./bin/bootstrap --preset ranger`. A preset",
+            "Use one with --preset, e.g. `mac-bootstrap bootstrap --preset ranger`. A preset",
             "behaves like --profiles: it skips the prompt and saves the selection, so",
             "you get the same laptop with one word on every machine.",
             "Edit the `presets` block in packages.json to rename or add your own."
@@ -137,19 +137,19 @@ const TREES = {
             "",
             "So different repos use different pnpm versions with no conflict, and you",
             "never install pnpm globally. A standalone global pnpm shows up as MIGRATE",
-            "in `./bin/migrate`."
+            "in `mac-bootstrap migrate`."
           ].join("\n")
       },
       examples: {
         summary: "Common invocations.",
         body: () =>
           [
-            "  ./bin/bootstrap --dry-run            preview everything, change nothing",
-            "  ./bin/bootstrap                      first run: prompt, then install",
-            "  ./bin/bootstrap --yes                non-interactive, use saved/defaults",
-            "  ./bin/bootstrap --preset ranger      a codename -> its profile set",
-            "  ./bin/bootstrap --profiles=core,node,cloud   exactly these",
-            "  ./bin/bootstrap --reconfigure        re-pick profiles from scratch"
+            "  mac-bootstrap bootstrap --dry-run            preview everything, change nothing",
+            "  mac-bootstrap bootstrap                      first run: prompt, then install",
+            "  mac-bootstrap bootstrap --yes                non-interactive, use saved/defaults",
+            "  mac-bootstrap bootstrap --preset ranger      a codename -> its profile set",
+            "  mac-bootstrap bootstrap --profiles=core,node,cloud   exactly these",
+            "  mac-bootstrap bootstrap --reconfigure        re-pick profiles from scratch"
           ].join("\n")
       },
       flags: {
@@ -180,7 +180,7 @@ const TREES = {
 
   doctor: {
     summary: "Verify the laptop matches the expected baseline; exit non-zero on drift.",
-    usage: "./bin/doctor [--dry-run] [--home PATH] [--packages PATH]",
+    usage: "mac-bootstrap doctor [--dry-run] [--home PATH] [--packages PATH]",
     body: () => "Only the currently-enabled profiles are checked (saved selection, or defaults).",
     topics: {
       checks: {
@@ -207,7 +207,7 @@ const TREES = {
             "  ~/.mac-bootstrap/profiles.json",
             "",
             "If no saved selection exists, doctor checks manifest defaults. Use",
-            "`./bin/bootstrap --profiles=...` or `./bin/bootstrap --preset ...` to set",
+            "`mac-bootstrap bootstrap --profiles=...` or `mac-bootstrap bootstrap --preset ...` to set",
             "the laptop profile set doctor and nightly should enforce."
           ].join("\n")
       },
@@ -220,14 +220,14 @@ const TREES = {
         body: () =>
           [
             "Start with the failing line:",
-            "  • missing formula/cask: run `./bin/bootstrap --profiles=...` or `brew install ...`",
+            "  • missing formula/cask: run `mac-bootstrap bootstrap --profiles=...` or `brew install ...`",
             "  • wrong Node major: run `volta install node@24` from the node profile",
             "  • missing Corepack: run `corepack enable`",
-            "  • quarantined cask helper: run targeted `./bin/security --apply` with skips as needed",
-            "  • missing zsh baseline: run `./bin/bootstrap` once for this HOME",
+            "  • quarantined cask helper: run targeted `mac-bootstrap security --apply` with skips as needed",
+            "  • missing zsh baseline: run `mac-bootstrap bootstrap` once for this HOME",
             "  • launchd job missing: install the plist only after reviewing the template",
             "",
-            "Use `./bin/doctor --dry-run` to see the check plan without invoking tools."
+            "Use `mac-bootstrap doctor --dry-run` to see the check plan without invoking tools."
           ].join("\n")
       }
     }
@@ -235,7 +235,7 @@ const TREES = {
 
   nightly: {
     summary: "Unattended Homebrew + self-update maintenance, designed for launchd.",
-    usage: "./bin/nightly [--dry-run] [--home PATH] [--packages PATH]",
+    usage: "mac-bootstrap nightly [--dry-run] [--home PATH] [--packages PATH]",
     topics: {
       steps: {
         summary: "What the nightly job runs.",
@@ -293,7 +293,7 @@ const TREES = {
 
   migrate: {
     summary: "Find tools installed the wrong way and move them onto managed installs.",
-    usage: "./bin/migrate [--apply] [--home PATH] [--packages PATH] [tool ...]",
+    usage: "mac-bootstrap migrate [--apply] [--home PATH] [--packages PATH] [tool ...]",
     body: () =>
       [
         "Plan-only by default — it prints what would change and touches nothing.",
@@ -338,7 +338,7 @@ const TREES = {
             "  brew pnpm aws cdk node",
             "",
             "Pass tool names to narrow the run:",
-            "  ./bin/migrate aws node",
+            "  mac-bootstrap migrate aws node",
             "",
             "Tool names are command names, not always package names. The manifest maps",
             "commands like `aws`, `cdk`, and `terraform` back to their managed formula."
@@ -362,10 +362,10 @@ const TREES = {
         summary: "Common migrate invocations.",
         body: () =>
           [
-            "  ./bin/migrate                 audit default tools, change nothing",
-            "  ./bin/migrate aws node        audit only AWS CLI + Node",
-            "  ./bin/migrate --apply aws     install managed AWS CLI, then remove old copy",
-            "  ./bin/migrate --help removal  explain safety rules"
+            "  mac-bootstrap migrate                 audit default tools, change nothing",
+            "  mac-bootstrap migrate aws node        audit only AWS CLI + Node",
+            "  mac-bootstrap migrate --apply aws     install managed AWS CLI, then remove old copy",
+            "  mac-bootstrap migrate --help removal  explain safety rules"
           ].join("\n")
       }
     }
@@ -373,7 +373,7 @@ const TREES = {
 
   security: {
     summary: "Detect and optionally apply local macOS security hardening.",
-    usage: "./bin/security [--apply] [--dry-run] [--skip MODULE] [--ssh-mode harden|disable]",
+    usage: "mac-bootstrap security [--apply] [--dry-run] [--skip MODULE] [--ssh-mode harden|disable]",
     body: () =>
       [
         "Default mode is read-only: detect current state, print suggested actions,",
@@ -425,7 +425,7 @@ const TREES = {
         body: () =>
           [
             "Preferred policy is Remote Login off:",
-            "  ./bin/security --apply --ssh-mode disable",
+            "  mac-bootstrap security --apply --ssh-mode disable",
             "",
             "If SSH must stay on, default apply mode writes:",
             "  /etc/ssh/sshd_config.d/99-mac-bootstrap.conf",
@@ -470,12 +470,12 @@ const TREES = {
         summary: "Common security invocations.",
         body: () =>
           [
-            "  ./bin/security",
-            "  ./bin/security --dry-run --apply",
-            "  ./bin/security --apply --ssh-mode disable",
-            "  ./bin/security --apply --skip filevault",
-            "  ./bin/security --apply --skip filevault --skip firewall --skip ssh-hardening",
-            "  ./bin/security --help ssh-hardening"
+            "  mac-bootstrap security",
+            "  mac-bootstrap security --dry-run --apply",
+            "  mac-bootstrap security --apply --ssh-mode disable",
+            "  mac-bootstrap security --apply --skip filevault",
+            "  mac-bootstrap security --apply --skip filevault --skip firewall --skip ssh-hardening",
+            "  mac-bootstrap security --help ssh-hardening"
           ].join("\n")
       }
     }
