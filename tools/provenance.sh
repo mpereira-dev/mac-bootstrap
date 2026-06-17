@@ -84,7 +84,7 @@ if [ -f "$PACKAGES_JSON" ]; then
 fi
 
 is_managed() {
-  # A manifest name may be a tap path like "oven-sh/bun/bun"; match the leaf too.
+  # A manifest name may be a tap path like "hashicorp/tap/terraform"; match the leaf too.
   case "$MANAGED_NAMES" in
     *" $1 "*) return 0 ;;
     *"/$1 "*) return 0 ;;

@@ -50,7 +50,12 @@ export async function doctor({
 
   const failures = checks.filter((check) => !check.ok);
   for (const check of checks) {
-    logger.log(`${check.ok ? "ok" : "fail"} - ${check.name}${check.detail ? ` (${check.detail})` : ""}`);
+    const message = `${check.ok ? "ok" : "fail"} - ${check.name}${check.detail ? ` (${check.detail})` : ""}`;
+    if (check.ok) {
+      logger.log(message);
+    } else {
+      logger.warn(message);
+    }
   }
   if (saved) {
     logger.log(`enabled profiles: ${enabled.join(", ")}`);
@@ -58,7 +63,11 @@ export async function doctor({
     logger.log(`enabled profiles (defaults; no saved selection): ${enabled.join(", ")}`);
   }
 
-  return failures.length === 0 ? 0 : 1;
+  if (failures.length > 0) {
+    logger.error(`${failures.length} doctor check(s) failed.`);
+    return 1;
+  }
+  return 0;
 }
 
 export function printDoctorPlan({ home, manifest, profiles, logger }) {

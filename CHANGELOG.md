@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0] - 2026-06-17
+### Added
+- Terraform CLI support in the `cloud` profile via `hashicorp/tap/terraform`.
+- Structured CLI logging with `[DEBUG]`, `[INFO]`, `[WARN]`, and `[ERROR]` labels plus terminal colors.
+
+### Changed
+- Node baseline moved from `22` to `24` across bootstrap, doctor, migrate, docs, tests, and package engines.
+- `ranger` and `maverick` now include Terraform through the `cloud` profile.
+
+### Removed
+- Bun is no longer installed or documented by the `node` profile.
+
 ## [0.2.2] - 2026-06-17
 ### Added
 - **`python` profile** (on by default) — `uv` + `poetry`. uv owns Python interpreters (replacing brew `python`): bootstrap seeds Python `3.12`, and projects pin their own with `uv python pin` / `requires-python`. doctor checks `uv` + `poetry`. `python` was removed from `core`.

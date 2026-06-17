@@ -13,7 +13,7 @@ Prerequisites are macOS and network access. From a fresh checkout:
 ./bin/bootstrap
 ```
 
-`bin/bootstrap` ensures Xcode CLI tools, Homebrew at `/opt/homebrew`, the curated Homebrew formulae and casks in `packages.json`, Volta-managed Node `22`, Corepack enabled for per-project `pnpm`/`yarn`, uv-managed Python `3.12`, minimal zsh shell setup, and `~/Library/LaunchAgents` plus `~/Library/Logs`.
+`bin/bootstrap` ensures Xcode CLI tools, Homebrew at `/opt/homebrew`, the curated Homebrew formulae and casks in `packages.json`, Volta-managed Node `24`, Corepack enabled for per-project `pnpm`/`yarn`, uv-managed Python `3.12`, minimal zsh shell setup, and `~/Library/LaunchAgents` plus `~/Library/Logs`.
 
 ## Profiles
 
@@ -25,7 +25,7 @@ Packages are grouped by profiles in `packages.json`:
 - `ai`: AI provider CLIs. Off by default.
 - `mobile`: Flutter, Android Studio, and CocoaPods. Off by default.
 - `network`: Tailscale. Off by default.
-- `cloud`: AWS CLI + CDK. Off by default.
+- `cloud`: AWS CLI, CDK, and Terraform. Off by default.
 
 On a fresh laptop, `./bin/bootstrap` opens an arrow-key picker for the profiles to enable, saves the selection to `~/.mac-bootstrap/profiles.json`, and reuses it on later runs. Controls: `↑/↓` (or `j/k`) navigate, `space` toggles the highlighted row, `a` toggles all, `enter` confirms, `q` / `esc` / `ctrl-c` cancel. Every profile is offered; off-by-default ones just start unchecked.
 
@@ -49,7 +49,7 @@ Presets are one-word codenames that expand to a set of profiles, so you get the 
 | Preset | Profiles | Purpose |
 |---|---|---|
 | `scout` | core, node, python | Any machine: shell + Node + Python baseline |
-| `ranger` | core, node, python, cloud | Cloud workstation (AWS tooling) |
+| `ranger` | core, node, python, cloud | Cloud workstation (AWS + Terraform tooling) |
 | `falcon` | core, node, python, ai, network | Connected workstation (AI + Tailscale) |
 | `ace` | core, node, python, ai, mobile | Mobile + AI rig (Flutter stack + AI CLIs) |
 | `maverick` | all profiles | Everything |

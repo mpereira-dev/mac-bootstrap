@@ -3,7 +3,9 @@ import { parseArgs } from "../src/args.js";
 import { bootstrap } from "../src/bootstrap.js";
 import { CommandRunner } from "../src/command-runner.js";
 import { printHelp } from "../src/help.js";
+import { ConsoleLogger } from "../src/logger.js";
 
+const logger = new ConsoleLogger();
 try {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
@@ -11,11 +13,11 @@ try {
   }
   const exitCode = await bootstrap({
     ...options,
-    runner: new CommandRunner({ dryRun: options.dryRun }),
-    logger: console
+    runner: new CommandRunner({ dryRun: options.dryRun, logger }),
+    logger
   });
   process.exit(exitCode);
 } catch (error) {
-  console.error(error.message);
+  logger.error(error.message);
   process.exit(1);
 }

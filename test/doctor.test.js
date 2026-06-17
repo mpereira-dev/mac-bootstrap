@@ -44,7 +44,7 @@ test("doctor dry-run prints checks and does nothing", async () => {
   const logger = new TestLogger();
   const exitCode = await doctor({ dryRun: true, home, runner, logger });
   assert.equal(exitCode, 0);
-  assert.match(logger.text(), /check node v22/);
+  assert.match(logger.text(), /check node v24/);
   assert.equal(runner.calls.length, 0);
 });
 

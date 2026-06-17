@@ -4,7 +4,7 @@ import { formatCommand } from "./command-runner.js";
 import { brewPath, loadManifest, repoRoot } from "./manifest.js";
 
 // Returns the bin leaf of a possibly-tap-qualified formula name
-// ("oven-sh/bun/bun" -> "bun").
+// ("hashicorp/tap/terraform" -> "terraform").
 function leaf(name) {
   const parts = String(name).split("/");
   return parts[parts.length - 1];

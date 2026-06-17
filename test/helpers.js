@@ -23,7 +23,7 @@ export class FakeRunner {
     failSteps = new Map(),
     xcodeInstalled = true,
     brewInstalled = true,
-    nodeVersion = "v22.22.3"
+    nodeVersion = "v24.0.0"
   } = {}) {
     this.formulae = new Set(formulae);
     this.casks = new Set(casks);
@@ -157,6 +157,10 @@ export class TestLogger {
   }
 
   log(message) {
+    this.lines.push(String(message));
+  }
+
+  warn(message) {
     this.lines.push(String(message));
   }
 

@@ -28,7 +28,7 @@ const fakeProvenance = (records) => async () => records;
 test("resolveManagedInstall maps node to Volta", () => {
   const manifest = loadManifest();
   const install = resolveManagedInstall({ name: "node" }, manifest);
-  assert.deepEqual(install, { command: "volta", args: ["install", "node@22"] });
+  assert.deepEqual(install, { command: "volta", args: ["install", "node@24"] });
 });
 
 test("resolveManagedInstall maps a command to its brew formula", () => {

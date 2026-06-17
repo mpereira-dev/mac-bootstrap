@@ -2,8 +2,10 @@
 import { parseArgs } from "../src/args.js";
 import { CommandRunner } from "../src/command-runner.js";
 import { printHelp } from "../src/help.js";
+import { ConsoleLogger } from "../src/logger.js";
 import { nightly } from "../src/nightly.js";
 
+const logger = new ConsoleLogger();
 try {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) {
@@ -11,12 +13,12 @@ try {
   }
   const exitCode = await nightly({
     ...options,
-    runner: new CommandRunner({ dryRun: options.dryRun }),
-    logger: console,
+    runner: new CommandRunner({ dryRun: options.dryRun, logger }),
+    logger,
     env: process.env
   });
   process.exit(exitCode);
 } catch (error) {
-  console.error(error.message);
+  logger.error(error.message);
   process.exit(1);
 }

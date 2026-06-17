@@ -1,6 +1,6 @@
 {
   "homebrewPrefix": "/opt/homebrew",
-  "defaultNode": "22",
+  "defaultNode": "24",
   "defaultPython": "3.12",
   "profiles": {
     "core": {
@@ -8,7 +8,7 @@
       "defaultEnabled": true
     },
     "node": {
-      "description": "Node.js runtime + bun via Volta.",
+      "description": "Node.js via Volta and Corepack package-manager shims.",
       "defaultEnabled": true
     },
     "python": {
@@ -28,7 +28,7 @@
       "defaultEnabled": false
     },
     "cloud": {
-      "description": "Cloud tooling (AWS CLI + CDK).",
+      "description": "Cloud tooling (AWS CLI + CDK + Terraform).",
       "defaultEnabled": false
     }
   },
@@ -38,7 +38,7 @@
       "profiles": ["core", "node", "python"]
     },
     "ranger": {
-      "description": "Cloud workstation: baseline + AWS tooling.",
+      "description": "Cloud workstation: baseline + AWS and Terraform tooling.",
       "profiles": ["core", "node", "python", "cloud"]
     },
     "falcon": {
@@ -91,11 +91,6 @@
       "why": "Pinned Node.js runtime management."
     },
     {
-      "name": "oven-sh/bun/bun",
-      "profile": "node",
-      "why": "Fast JavaScript runtime + package manager."
-    },
-    {
       "name": "uv",
       "profile": "python",
       "command": "uv",
@@ -123,6 +118,12 @@
       "profile": "cloud",
       "command": "cdk",
       "why": "AWS CDK toolkit. Homebrew formula; replaces an ad-hoc global npm install of aws-cdk."
+    },
+    {
+      "name": "hashicorp/tap/terraform",
+      "profile": "cloud",
+      "command": "terraform",
+      "why": "Terraform CLI for infrastructure-as-code workflows. HashiCorp tap formula; homebrew/core terraform is disabled/stale."
     }
   ],
   "casks": [

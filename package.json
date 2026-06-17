@@ -1,6 +1,6 @@
 {
   "name": "mac-bootstrap",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "Deterministic macOS laptop bootstrap and nightly upkeep.",
@@ -16,6 +16,6 @@
     "test:e2e": "node --test test-e2e/*.test.js"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   }
 }
