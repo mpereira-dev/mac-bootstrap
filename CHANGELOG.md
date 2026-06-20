@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.2] - 2026-06-20
+### Changed
+- Slimmed the README to purpose, prerequisites, quick start, command examples, and documentation links.
+- Moved bootstrap, brownfield setup, maintenance, and `mac-scripts` ownership details into focused runbook and architecture docs.
+
 ## [0.5.1] - 2026-06-20
 ### Fixed
 - Bootstrap now enables Corepack through Volta's resolved Node image when no `corepack` PATH shim exists.

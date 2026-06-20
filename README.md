@@ -1,144 +1,72 @@
 # mac-bootstrap
 
-Deterministic macOS laptop bootstrap and nightly upkeep for an Apple Silicon macOS development laptop. This repository installs the owner-approved baseline, keeps it current with a launchd-compatible nightly job, and provides a doctor command that fails loudly when expected state drifts.
+`mac-bootstrap` sets up and checks an Apple Silicon macOS development laptop.
+It installs the approved tool baseline, keeps that baseline healthy, and fails
+loudly when the machine drifts.
 
-This repo is Apple Silicon only. Homebrew is expected at `/opt/homebrew`.
+This repo owns what is installed: Homebrew packages, casks, Volta, Node,
+Corepack, Python tooling, selected profile presets, health checks, migrations,
+security checks, and the optional nightly upkeep job.
 
-## Bootstrap a Fresh Laptop
+For shell aliases and PATH behavior, use the sibling
+[`mac-scripts`](https://github.com/mpereira-dev/mac-scripts) repo.
 
-Prerequisites are macOS and network access. From a fresh checkout:
+## Prerequisites
+
+- Apple Silicon macOS.
+- Network access.
+- A checkout of this repo.
+- Homebrew is expected at `/opt/homebrew`; bootstrap can install it when needed.
+
+## Quick Start
+
+Preview the work:
 
 ```sh
 ./bin/mac-bootstrap bootstrap --dry-run
+```
+
+Run bootstrap:
+
+```sh
 ./bin/mac-bootstrap bootstrap
 ```
 
-`bin/mac-bootstrap` is a shell-safe cold-start wrapper. If Node is not available
-yet, `bootstrap` installs the minimum Homebrew + Volta + Node `24` runtime first,
-then hands off to the full Node CLI. `bootstrap` ensures Xcode CLI tools,
-Homebrew at `/opt/homebrew`, the curated Homebrew formulae and casks in
-`packages.json`, Volta-managed Node `24`, Corepack enabled for per-project
-`pnpm`/`yarn`, uv-managed Python `3.12`, minimal zsh shell setup, and
-`~/Library/LaunchAgents` plus `~/Library/Logs`.
-
-The canonical operator surface is:
-
-```sh
-./bin/mac-bootstrap <command> [args]
-```
-
-Existing shortcuts such as `./bin/bootstrap`, `./bin/doctor`, and
-`./bin/security` remain as compatibility shims.
-
-## Profiles
-
-Packages are grouped by profiles in `packages.json`:
-
-- `core`: shell and repository baseline. On by default.
-- `node`: Node.js runtime (Volta) and Corepack for per-project `pnpm`/`yarn`. On by default.
-- `python`: uv (interpreters + packaging) and Poetry. On by default.
-- `ai`: AI provider CLIs. Off by default.
-- `mobile`: Flutter, Android Studio, and CocoaPods. Off by default.
-- `network`: Tailscale. Off by default.
-- `cloud`: AWS CLI, CDK, and Terraform. Off by default.
-
-On a fresh laptop, `./bin/mac-bootstrap bootstrap` opens an arrow-key picker for the profiles to enable, saves the selection to `~/.mac-bootstrap/profiles.json`, and reuses it on later runs. Controls: `↑/↓` (or `j/k`) navigate, `space` toggles the highlighted row, `a` toggles all, `enter` confirms, `q` / `esc` / `ctrl-c` cancel. Every profile is offered; off-by-default ones just start unchecked.
-
-In non-TTY contexts (CI, redirected stdin) the picker falls back to a per-profile yes/no prompt automatically.
-
-Non-interactive flags:
-
-```sh
-./bin/mac-bootstrap bootstrap --yes
-./bin/mac-bootstrap bootstrap --preset ranger
-./bin/mac-bootstrap bootstrap --profiles=core,node,cloud
-./bin/mac-bootstrap bootstrap --reconfigure
-```
-
-`--yes` skips the prompt and uses the saved selection, or the manifest defaults when no saved file exists. `--profiles=A,B` installs exactly those profiles and saves the selection. `--reconfigure` ignores the saved selection and prompts again.
-
-### Presets
-
-Presets are one-word codenames that expand to a set of profiles, so you get the same laptop with one word on every machine. `--preset NAME` behaves like `--profiles` (no prompt, selection saved). Run `./bin/mac-bootstrap bootstrap --help presets` for the table.
-
-| Preset | Profiles | Purpose |
-|---|---|---|
-| `scout` | core, node, python | Any machine: shell + Node + Python baseline |
-| `ranger` | core, node, python, cloud | Cloud workstation (AWS + Terraform tooling) |
-| `falcon` | core, node, python, ai, network | Connected workstation (AI + Tailscale) |
-| `ace` | core, node, python, ai, mobile | Mobile + AI rig (Flutter stack + AI CLIs) |
-| `maverick` | all profiles | Everything |
-
-Edit the `presets` block in `packages.json` to rename or add your own.
-
-Run `./bin/mac-bootstrap --help` for the command list. Every command supports nested, topic-based help: `--help profiles` prints the profile table, and `help <command> <topic> [subtopic]` works too (e.g. `./bin/mac-bootstrap help migrate detection`).
-
-`doctor` and `nightly` read the same saved selection. If no saved selection exists, they use the manifest defaults.
-
-The package manifest is intentionally curated. It is seeded from the current laptop, but it includes only packages that are expected to be first-class development tools rather than every transitive dependency.
-
-## Per-Project Runtime Versions
-
-`mac-bootstrap` installs the *version managers*, not pinned runtimes, so different projects can use different versions without conflict:
-
-- **Node** is provided by Volta. A project pins its own version with `volta pin node@X`; Volta auto-switches per directory.
-- **pnpm / yarn** are provided by Corepack (`corepack enable` runs during bootstrap when the `node` profile is on). A project pins its exact version in `package.json` with `"packageManager": "pnpm@10.x"`. Do not install pnpm globally — `bin/migrate` flags a standalone global pnpm as something to migrate onto Corepack.
-- **Python** is provided by uv (the `python` profile installs `uv` + `poetry`). uv owns the interpreters — bootstrap seeds Python `3.12`, and a project pins its own with `uv python pin 3.x` or `requires-python`. No brew `python`; uv replaces it. Poetry is installed alongside for existing Poetry projects during the transition to uv.
-
-## Migrate Existing Installs
-
-`tools/provenance.sh` audits how each tool was actually installed (Homebrew, Volta, Corepack, a standalone pnpm/npm global, a macOS `.pkg`, or a manual drop) and labels it `OK` / `MIGRATE` / `UNMANAGED`. It never changes anything.
-
-`migrate` acts on that audit:
-
-```sh
-./bin/mac-bootstrap migrate aws node            # plan only — show what would change
-./bin/mac-bootstrap migrate --apply aws node    # install the managed version, then remove the old one
-```
-
-Plan-only by default. `--apply` is the confirmation — it installs the mac-bootstrap-managed version first (idempotent), and only then removes the old copy, with no second prompt. Removals that need human judgement — `.pkg` receipts, version placeholders, manual `/usr/local` drops — are printed for you to handle rather than run automatically. With no tool arguments it audits the default set (`brew pnpm aws cdk node`).
-
-## Nightly Upkeep
-
-`nightly` is designed for launchd and runs these steps:
-
-```sh
-brew update
-brew upgrade
-brew upgrade --cask
-claude update
-```
-
-After cask upgrades, nightly also strips `com.apple.quarantine` from nested Homebrew Cask helper binaries such as Codex's bundled `codex-path/rg`. This is intentionally targeted to Homebrew-managed Caskroom payloads so a Codex update does not bring back the Gatekeeper "`rg` Not Opened" prompt.
-
-Self-update commands such as `claude update` only run for casks in enabled profiles. If `packages.json` later pins npm globals, nightly updates those too. It writes to `~/Library/Logs/mac-bootstrap-nightly.log`, rotates prior logs with seven-day retention, captures before/after version snapshots, and posts a Discord summary only when `DISCORD_WEBHOOK_URL` is present in the runtime environment.
-
-The launchd template lives at `launchd/com.mac-bootstrap.nightly.plist`. It is intentionally not loaded by this repository; install it only after review by copying it to `~/Library/LaunchAgents/` and loading it with `launchctl bootstrap`.
-
-## Verify Health
+Check the machine afterward:
 
 ```sh
 ./bin/mac-bootstrap doctor
 ```
 
-Doctor checks expected directories, the launchd template, the launchd job if the plist has been installed, shell baseline, Xcode CLI tools, enabled Homebrew formulae, CLI commands provided by enabled casks, GUI casks without commands, quarantined nested helpers in enabled Homebrew Casks, Volta, and the expected major Node version when the `node` profile is enabled. It exits non-zero on drift.
+`./bin/mac-bootstrap` is a shell-safe cold-start wrapper. If Node is missing,
+the `bootstrap` command installs enough Homebrew, Volta, and Node `24` to start
+the full Node CLI.
 
-## Security Hardening
+## Common Commands
 
 ```sh
+./bin/mac-bootstrap bootstrap --reconfigure
+./bin/mac-bootstrap bootstrap --preset ranger
+./bin/mac-bootstrap bootstrap --profiles=core,node,cloud
+./bin/mac-bootstrap migrate
+./bin/mac-bootstrap nightly --dry-run
 ./bin/mac-bootstrap security
-./bin/mac-bootstrap security --dry-run --apply
+./bin/mac-bootstrap help bootstrap presets
 ```
 
-Security is read-only by default: it detects and suggests hardening for FileVault, the macOS Application Firewall, Remote Login / SSH, and quarantined nested helper binaries inside Homebrew Casks. `--apply` performs the automated steps where safe; FileVault enablement remains manual because the recovery key must be captured and stored immediately. The Cask quarantine cleanup only targets helper binaries under Homebrew's Caskroom, not `~/Downloads` or `/Applications` broadly. Use `./bin/mac-bootstrap security --help modules` or `./bin/mac-bootstrap security --help cask-quarantine` for the deeper menu.
+Compatibility shortcuts such as `./bin/bootstrap`, `./bin/doctor`, and
+`./bin/security` still work, but the main surface is `./bin/mac-bootstrap`.
 
-## Shell Environment
+## Docs
 
-`mac-bootstrap` handles installation. The sibling [`mac-scripts`](https://github.com/mpereira-dev/mac-scripts) repository handles shell PATH and environment wiring.
-
-## Extend
-
-Edit `packages.json` for formulae, casks, Node default, and npm-global pins. Add tests for each behavioral change before relying on it for unattended maintenance. Use `./bin/mac-bootstrap bootstrap --dry-run`, `./bin/mac-bootstrap nightly --dry-run`, and `./bin/mac-bootstrap doctor --dry-run` to inspect planned actions without changing the machine.
+- [Bootstrap runbook](docs/runbooks/bootstrap.md) explains profiles, presets,
+  brownfield setup, migration, and per-project runtime versions.
+- [Maintenance runbook](docs/runbooks/maintenance.md) explains `doctor`,
+  `nightly`, launchd, Discord summaries, and security checks.
+- [Bootstrap vs scripts architecture](docs/architecture/bootstrap-vs-scripts.md)
+  explains what this repo owns and what `mac-scripts` owns.
+- [Tool choice decision](docs/decisions/0001-tool-choice.md) explains why the
+  main implementation uses Node.
 
 ## Test
 
@@ -146,4 +74,5 @@ Edit `packages.json` for formulae, casks, Node default, and npm-global pins. Add
 npm test
 ```
 
-Tests use fake command runners and isolated temporary homes. They do not invoke real install commands.
+Tests use fake command runners and isolated temporary homes. They do not invoke
+real install commands.
