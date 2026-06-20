@@ -1,6 +1,6 @@
 {
   "name": "mac-bootstrap",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "description": "Deterministic macOS laptop bootstrap and nightly upkeep.",

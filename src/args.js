@@ -2,6 +2,7 @@ export function parseArgs(argv) {
   const options = {
     dryRun: false,
     yes: false,
+    install: false,
     reconfigure: false,
     preset: undefined,
     profiles: undefined,
@@ -13,6 +14,8 @@ export function parseArgs(argv) {
     const arg = argv[index];
     if (arg === "--dry-run") {
       options.dryRun = true;
+    } else if (arg === "--install") {
+      options.install = true;
     } else if (arg === "--yes" || arg === "-y") {
       options.yes = true;
     } else if (arg === "--reconfigure") {

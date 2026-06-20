@@ -46,11 +46,13 @@ The launchd template lives at:
 launchd/com.mac-bootstrap.nightly.plist
 ```
 
-Review the paths before installing it on a machine. The plist may contain an
-absolute checkout path that is correct on one laptop and wrong on another.
+To automatically configure paths and install it into launchd:
 
-Install only after review by copying it to `~/Library/LaunchAgents/` and loading
-it with `launchctl bootstrap`.
+```sh
+./bin/mac-bootstrap nightly --install
+```
+
+This dynamically substitutes `__NIGHTLY_BIN__` and other variables for your actual absolute paths, preventing you from checking in personal paths to GitHub.
 
 ## Cask Quarantine Cleanup
 

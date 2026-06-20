@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { brewPath, filterByProfiles, loadManifest } from "./manifest.js";
+import { brewPath, filterByProfiles, loadManifest, repoRoot } from "./manifest.js";
 import { checkNetwork } from "./network.js";
 import { FileLogger } from "./logger.js";
 import { defaultProfiles, loadSelections } from "./selections.js";
@@ -9,6 +9,7 @@ import { caskQuarantine } from "./security/index.js";
 
 export async function nightly({
   dryRun = false,
+  install = false,
   home = os.homedir(),
   manifestPath,
   runner,
@@ -22,6 +23,38 @@ export async function nightly({
   const enabled = saved ? saved.profiles : defaultProfiles(fullManifest);
   const manifest = filterByProfiles(fullManifest, enabled);
   const logPath = path.join(home, "Library", "Logs", "mac-bootstrap-nightly.log");
+
+  if (install) {
+    if (dryRun) {
+      logger.log("[dry-run] install nightly launchd job");
+      return 0;
+    }
+    const templatePath = path.join(repoRoot(), "launchd", "com.mac-bootstrap.nightly.plist");
+    const outPath = path.join(home, "Library", "LaunchAgents", "com.mac-bootstrap.nightly.plist");
+    const template = fs.readFileSync(templatePath, "utf8");
+    const root = repoRoot();
+    const plist = template
+      .replace("__VOLTA_NODE__", path.join(home, ".volta", "bin", "node"))
+      .replace("__NIGHTLY_BIN__", path.join(root, "bin", "nightly"))
+      .replace("__VOLTA_BIN__", path.join(home, ".volta", "bin"))
+      .replace("__LOG_OUT__", path.join(home, "Library", "Logs", "mac-bootstrap-nightly.launchd.out.log"))
+      .replace("__LOG_ERR__", path.join(home, "Library", "Logs", "mac-bootstrap-nightly.launchd.err.log"))
+      .replace("__REPO_ROOT__", root);
+
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    fs.writeFileSync(outPath, plist);
+    logger.log(`Wrote ${outPath}`);
+
+    const uid = process.getuid();
+    runner.run("launchctl", ["bootout", `gui/${uid}/com.mac-bootstrap.nightly`]);
+    const result = runner.run("launchctl", ["bootstrap", `gui/${uid}`, outPath]);
+    if (result.status !== 0) {
+      logger.error(`launchctl bootstrap failed: ${result.stderr || result.stdout}`);
+      return 1;
+    }
+    logger.log("Successfully installed and loaded nightly launchd job.");
+    return 0;
+  }
 
   if (dryRun) {
     printNightlyPlan({ home, manifest, profiles: enabled, logger });

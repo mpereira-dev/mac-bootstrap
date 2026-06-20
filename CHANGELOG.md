@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0] - 2026-06-20
+### Added
+- `--install` flag for `mac-bootstrap nightly` to dynamically generate and load the launchd job.
+
+### Changed
+- Converted `launchd/com.mac-bootstrap.nightly.plist` to a template to prevent personal checkout paths from being committed.
+
 ## [0.5.2] - 2026-06-20
 ### Changed
 - Slimmed the README to purpose, prerequisites, quick start, command examples, and documentation links.

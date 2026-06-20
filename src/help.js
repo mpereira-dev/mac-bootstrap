@@ -254,13 +254,13 @@ const TREES = {
         summary: "How to install the nightly schedule.",
         body: () =>
           [
-            "The repo ships a template at launchd/com.mac-bootstrap.nightly.plist but does",
-            "NOT load it. After reviewing it:",
+            "The repo ships a template at launchd/com.mac-bootstrap.nightly.plist.",
+            "To install it, generating the correct absolute paths dynamically:",
             "",
-            "  cp launchd/com.mac-bootstrap.nightly.plist ~/Library/LaunchAgents/",
-            "  launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.mac-bootstrap.nightly.plist",
+            "  mac-bootstrap nightly --install",
             "",
-            "doctor then verifies the job is loaded."
+            "This command writes the configured plist to ~/Library/LaunchAgents/ and",
+            "loads it into launchd. doctor then verifies the job is loaded."
           ].join("\n")
       },
       discord: {

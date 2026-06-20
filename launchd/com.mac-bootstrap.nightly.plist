@@ -6,13 +6,13 @@
   <string>com.mac-bootstrap.nightly</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/earth/.volta/bin/node</string>
-    <string>/Users/earth/projects/mac-bootstrap/bin/nightly</string>
+    <string>__VOLTA_NODE__</string>
+    <string>__NIGHTLY_BIN__</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
-    <string>/Users/earth/.volta/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <string>__VOLTA_BIN__:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
   <key>StartCalendarInterval</key>
   <dict>
@@ -22,11 +22,11 @@
     <integer>0</integer>
   </dict>
   <key>StandardOutPath</key>
-  <string>/Users/earth/Library/Logs/mac-bootstrap-nightly.launchd.out.log</string>
+  <string>__LOG_OUT__</string>
   <key>StandardErrorPath</key>
-  <string>/Users/earth/Library/Logs/mac-bootstrap-nightly.launchd.err.log</string>
+  <string>__LOG_ERR__</string>
   <key>WorkingDirectory</key>
-  <string>/Users/earth/projects/mac-bootstrap</string>
+  <string>__REPO_ROOT__</string>
   <key>RunAtLoad</key>
   <false/>
 </dict>
