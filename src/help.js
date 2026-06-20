@@ -244,7 +244,7 @@ const TREES = {
             "  brew update / upgrade / upgrade --cask",
             "  strip quarantine from nested Homebrew Cask helper binaries",
             "  per-cask self-updates (e.g. `claude update`) for enabled profiles only",
-            "  npm-global installs, if packages.json pins any",
+            "  npm-global updates, if packages.json pins any",
             "",
             "It captures before/after versions, writes to",
             "~/Library/Logs/mac-bootstrap-nightly.log, and rotates logs (7-day retention)."

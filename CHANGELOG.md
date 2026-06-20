@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.6.1] - 2026-06-20
+### Fixed
+- Changed `nightly`'s npm-global updater from `npm install` to `npm update` to respect existing major versions and avoid applying breaking changes unattended.
+
 ## [0.6.0] - 2026-06-20
 ### Added
 - `--install` flag for `mac-bootstrap nightly` to dynamically generate and load the launchd job.

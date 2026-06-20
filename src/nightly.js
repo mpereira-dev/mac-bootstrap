@@ -85,7 +85,7 @@ export async function nightly({
   }
 
   for (const npmGlobal of manifest.npmGlobals) {
-    runStep(runner, log, failures, "npm", ["install", "--global", npmGlobal], `npm install --global ${npmGlobal}`);
+    runStep(runner, log, failures, "npm", ["update", "--global", npmGlobal], `npm update --global ${npmGlobal}`);
   }
 
   const after = captureVersions(runner, manifest);
@@ -118,7 +118,7 @@ export function printNightlyPlan({ home, manifest, profiles, logger }) {
     logger.log("[dry-run] no npm-global packages pinned");
   }
   for (const npmGlobal of manifest.npmGlobals) {
-    logger.log(`[dry-run] npm install --global ${npmGlobal}`);
+    logger.log(`[dry-run] npm update --global ${npmGlobal}`);
   }
   logger.log("[dry-run] capture after versions");
   logger.log("[dry-run] post Discord summary only if DISCORD_WEBHOOK_URL is set");
