@@ -324,13 +324,22 @@ function ensureVoltaNode(runner, manifest, logger) {
 // project pins in its package.json "packageManager" field. mac-bootstrap only
 // turns it on; per-project versions live in the projects, not on the machine.
 function ensureCorepack(runner, logger) {
-  const result = runner.run("corepack", ["enable"]);
+  const command = resolveCorepackCommand(runner);
+  const result = runner.run(command, ["enable"]);
   if (result.status !== 0) {
     logger.error(`Failed to enable Corepack: ${result.stderr}`);
     return { ok: false };
   }
   logger.log("Enabled Corepack (per-project pnpm/yarn via packageManager field).");
   return { ok: true };
+}
+
+function resolveCorepackCommand(runner) {
+  const resolved = runner.run("volta", ["which", "corepack"]);
+  if (resolved.status === 0 && resolved.stdout.trim()) {
+    return resolved.stdout.trim();
+  }
+  return "corepack";
 }
 
 // uv owns Python interpreters (replacing brew python / pyenv). Seed a baseline

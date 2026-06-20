@@ -70,7 +70,7 @@ export class FakeRunner {
       return { status: 0, stdout: "", stderr: "" };
     }
 
-    if (command === "corepack" && args[0] === "enable") {
+    if ((command === "corepack" || command.endsWith("/corepack")) && args[0] === "enable") {
       return { status: 0, stdout: "", stderr: "" };
     }
 
@@ -87,7 +87,13 @@ export class FakeRunner {
       return { status: 0, stdout: "", stderr: "" };
     }
     if (command === "volta" && args[0] === "which") {
-      return { status: 0, stdout: "/Users/test/.volta/bin/node\n", stderr: "" };
+      if (args[1] === "corepack") {
+        return { status: 0, stdout: "/Users/test/.volta/tools/image/node/24.0.0/bin/corepack\n", stderr: "" };
+      }
+      if (args[1] === "node") {
+        return { status: 0, stdout: "/Users/test/.volta/bin/node\n", stderr: "" };
+      }
+      return { status: 1, stdout: "", stderr: "not found" };
     }
     if (command === "volta" && args[0] === "--version") {
       return { status: 0, stdout: `${this.commands.volta}\n`, stderr: "" };

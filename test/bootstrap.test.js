@@ -87,6 +87,16 @@ test("bootstrap with core profile installs only core packages", async () => {
   assert.equal(runner.casks.has("claude-code"), false);
 });
 
+test("bootstrap enables Corepack through Volta when no PATH shim exists", async () => {
+  const home = tempHome();
+  const runner = new FakeRunner();
+  const logger = new TestLogger();
+  const exitCode = await bootstrap({ home, runner, logger, profiles: ["node"], networkCheck: async () => true });
+  assert.equal(exitCode, 0);
+  assert.ok(runner.calls.some((call) => call.join(" ") === "volta which corepack"));
+  assert.ok(runner.calls.some((call) => call.join(" ") === "/Users/test/.volta/tools/image/node/24.0.0/bin/corepack enable"));
+});
+
 test("bootstrap prompts on first run and saves every accepted profile", async () => {
   const home = tempHome();
   const runner = new FakeRunner();

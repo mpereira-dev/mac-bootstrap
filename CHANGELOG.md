@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.1] - 2026-06-20
+### Fixed
+- Bootstrap now enables Corepack through Volta's resolved Node image when no `corepack` PATH shim exists.
+
 ## [0.5.0] - 2026-06-17
 ### Added
 - `./bin/mac-bootstrap` is now the canonical single operator surface with `bootstrap`, `doctor`, `nightly`, `migrate`, `security`, and deep `help` subcommands.
