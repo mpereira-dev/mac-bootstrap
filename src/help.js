@@ -82,7 +82,8 @@ const TREES = {
         "repeatedly. Use --dry-run first to print the plan without touching anything.",
         "",
         "Steps: Xcode CLI tools, Homebrew, enabled formulae + casks, Volta-managed",
-        "Node, Corepack, a minimal ~/.zshrc baseline, and the LaunchAgents/Logs dirs."
+        "Node, Corepack, a minimal ~/.zshrc baseline (PATH adds ~/.volta/bin then",
+        "~/.local/bin for user-managed CLI launchers), and the LaunchAgents/Logs dirs."
       ].join("\n"),
     topics: {
       profiles: {
@@ -131,8 +132,9 @@ const TREES = {
         summary: "Per-project pnpm/yarn versions, no global install.",
         body: () =>
           [
-            "When the node profile is on, bootstrap runs `corepack enable`. Corepack",
-            "ships with Node and provisions the exact pnpm/yarn each project pins in",
+            "When the node profile is on, bootstrap runs `volta install corepack`",
+            "(so the shim lands on PATH) then `corepack enable`. Corepack ships with",
+            "Node and provisions the exact pnpm/yarn each project pins in",
             'its package.json "packageManager" field (e.g. "pnpm@10.18.0").',
             "",
             "So different repos use different pnpm versions with no conflict, and you",
@@ -222,7 +224,7 @@ const TREES = {
             "Start with the failing line:",
             "  • missing formula/cask: run `mac-bootstrap bootstrap --profiles=...` or `brew install ...`",
             "  • wrong Node major: run `volta install node@24` from the node profile",
-            "  • missing Corepack: run `corepack enable`",
+            "  • missing Corepack: run `volta install corepack` then `corepack enable`",
             "  • quarantined cask helper: run targeted `mac-bootstrap security --apply` with skips as needed",
             "  • missing zsh baseline: run `mac-bootstrap bootstrap` once for this HOME",
             "  • launchd job missing: install the plist only after reviewing the template",

@@ -24,6 +24,7 @@ test("doctor streams checks before later package checks run", async () => {
   writeSavedSelections(home, ["core"]);
   fs.mkdirSync(path.join(home, "Library", "LaunchAgents"), { recursive: true });
   fs.mkdirSync(path.join(home, "Library", "Logs"), { recursive: true });
+  fs.mkdirSync(path.join(home, ".local", "bin"), { recursive: true });
   fs.writeFileSync(path.join(home, ".zshrc"), "# mac-bootstrap managed baseline\n");
   const manifest = loadManifest();
   const logger = new TestLogger();
@@ -49,6 +50,7 @@ test("doctor checks CLI casks by usable command", async () => {
   writeSavedSelections(home, ["ai"]);
   fs.mkdirSync(path.join(home, "Library", "LaunchAgents"), { recursive: true });
   fs.mkdirSync(path.join(home, "Library", "Logs"), { recursive: true });
+  fs.mkdirSync(path.join(home, ".local", "bin"), { recursive: true });
   fs.writeFileSync(path.join(home, ".zshrc"), "# mac-bootstrap managed baseline\n");
   const runner = new FakeRunner();
   const logger = new TestLogger();
@@ -69,6 +71,7 @@ test("doctor fails on expected version mismatch", async () => {
   });
   fs.mkdirSync(path.join(home, "Library", "LaunchAgents"), { recursive: true });
   fs.mkdirSync(path.join(home, "Library", "Logs"), { recursive: true });
+  fs.mkdirSync(path.join(home, ".local", "bin"), { recursive: true });
   fs.writeFileSync(path.join(home, ".zshrc"), "# mac-bootstrap managed baseline\n");
   const logger = new TestLogger();
   const exitCode = await doctor({ home, runner, logger });
@@ -96,6 +99,7 @@ test("doctor skips disabled formulae and casks", async () => {
   writeSavedSelections(home, ["core"]);
   fs.mkdirSync(path.join(home, "Library", "LaunchAgents"), { recursive: true });
   fs.mkdirSync(path.join(home, "Library", "Logs"), { recursive: true });
+  fs.mkdirSync(path.join(home, ".local", "bin"), { recursive: true });
   fs.writeFileSync(path.join(home, ".zshrc"), "# mac-bootstrap managed baseline\n");
   const runner = new FakeRunner({ formulae: coreFormulae });
   const logger = new TestLogger();

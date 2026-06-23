@@ -83,7 +83,9 @@ export class FakeRunner {
     }
 
     if (command === "volta" && args[0] === "install") {
-      this.nodeVersion = args[1].replace("node@", "v") + ".0.0";
+      if (args[1].startsWith("node@")) {
+        this.nodeVersion = args[1].replace("node@", "v") + ".0.0";
+      }
       return { status: 0, stdout: "", stderr: "" };
     }
     if (command === "volta" && args[0] === "which") {

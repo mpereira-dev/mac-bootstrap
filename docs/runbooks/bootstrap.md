@@ -106,8 +106,9 @@ printed for you instead of being run automatically.
 Use project metadata for project-specific versions:
 
 ```sh
-volta pin node@24
-corepack enable
+volta pin node@24          # per-project Node
+volta install corepack     # once per machine: puts corepack on PATH
+corepack enable            # activate the pnpm/yarn shims
 ```
 
 Example `package.json` field:

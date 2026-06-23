@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
 import { bootstrap, ensureFormula } from "../src/bootstrap.js";
 import { loadManifest } from "../src/manifest.js";
@@ -87,14 +88,49 @@ test("bootstrap with core profile installs only core packages", async () => {
   assert.equal(runner.casks.has("claude-code"), false);
 });
 
-test("bootstrap enables Corepack through Volta when no PATH shim exists", async () => {
+test("bootstrap creates ~/.local/bin and adds it to the zsh baseline behind Volta", async () => {
+  const home = tempHome();
+  const runner = new FakeRunner();
+  const logger = new TestLogger();
+  const exitCode = await bootstrap({ home, runner, logger, profiles: ["core"], networkCheck: async () => true });
+  assert.equal(exitCode, 0);
+  assert.equal(fs.existsSync(path.join(home, ".local", "bin")), true);
+  const zshrc = fs.readFileSync(path.join(home, ".zshrc"), "utf8");
+  assert.match(zshrc, /export PATH="\$HOME\/\.local\/bin:\$PATH"/);
+  // ~/.local/bin line must come before the Volta prepend so Volta stays earliest.
+  assert.ok(zshrc.indexOf("$HOME/.local/bin") < zshrc.indexOf("$VOLTA_HOME/bin"));
+});
+
+test("bootstrap upgrades an existing managed block to add ~/.local/bin once", async () => {
+  const home = tempHome();
+  const legacyBlock = [
+    "",
+    "# mac-bootstrap managed baseline",
+    "export VOLTA_HOME=\"$HOME/.volta\"",
+    "export PATH=\"$VOLTA_HOME/bin:$PATH\"",
+    "# end mac-bootstrap managed baseline",
+    ""
+  ].join("\n");
+  fs.writeFileSync(path.join(home, ".zshrc"), legacyBlock);
+  const runner = new FakeRunner();
+  await bootstrap({ home, runner, logger: new TestLogger(), profiles: ["core"], networkCheck: async () => true });
+  let zshrc = fs.readFileSync(path.join(home, ".zshrc"), "utf8");
+  assert.equal((zshrc.match(/\$HOME\/\.local\/bin/g) || []).length, 1);
+  assert.ok(zshrc.indexOf("$HOME/.local/bin") < zshrc.indexOf("$VOLTA_HOME/bin"));
+  // Re-running must not duplicate the line.
+  await bootstrap({ home, runner, logger: new TestLogger(), profiles: ["core"], networkCheck: async () => true });
+  zshrc = fs.readFileSync(path.join(home, ".zshrc"), "utf8");
+  assert.equal((zshrc.match(/\$HOME\/\.local\/bin/g) || []).length, 1);
+});
+
+test("bootstrap installs Corepack through Volta so it lands on PATH", async () => {
   const home = tempHome();
   const runner = new FakeRunner();
   const logger = new TestLogger();
   const exitCode = await bootstrap({ home, runner, logger, profiles: ["node"], networkCheck: async () => true });
   assert.equal(exitCode, 0);
-  assert.ok(runner.calls.some((call) => call.join(" ") === "volta which corepack"));
-  assert.ok(runner.calls.some((call) => call.join(" ") === "/Users/test/.volta/tools/image/node/24.0.0/bin/corepack enable"));
+  assert.ok(runner.calls.some((call) => call.join(" ") === "volta install corepack"));
+  assert.ok(runner.calls.some((call) => call.join(" ") === "corepack enable"));
 });
 
 test("bootstrap prompts on first run and saves every accepted profile", async () => {

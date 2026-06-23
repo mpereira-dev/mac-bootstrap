@@ -178,7 +178,8 @@ export function printBootstrapPlan({ home, manifest, profiles, logger }) {
   logger.log(`[dry-run] enabled profiles: ${profiles && profiles.length > 0 ? profiles.join(", ") : "(none)"}`);
   logger.log(`[dry-run] ensure directory ${path.join(home, "Library", "LaunchAgents")}`);
   logger.log(`[dry-run] ensure directory ${path.join(home, "Library", "Logs")}`);
-  logger.log(`[dry-run] ensure minimal zsh config ${path.join(home, ".zshrc")}`);
+  logger.log(`[dry-run] ensure directory ${path.join(home, ".local", "bin")}`);
+  logger.log(`[dry-run] ensure minimal zsh config ${path.join(home, ".zshrc")} (PATH: ~/.volta/bin, ~/.local/bin)`);
   logger.log(`[dry-run] check ${formatCommand("xcode-select", ["-p"])}`);
   logger.log(`[dry-run] install Xcode CLI tools if missing`);
   logger.log(`[dry-run] install Homebrew at ${manifest.homebrewPrefix} if missing`);
@@ -190,6 +191,7 @@ export function printBootstrapPlan({ home, manifest, profiles, logger }) {
   }
   if (profiles && profiles.includes("node")) {
     logger.log(`[dry-run] volta install node@${manifest.defaultNode}`);
+    logger.log(`[dry-run] volta install corepack`);
     logger.log(`[dry-run] corepack enable (per-project pnpm/yarn via packageManager field)`);
   }
   if (profiles && profiles.includes("python")) {
@@ -202,6 +204,7 @@ function ensureDirectories(home, logger) {
     path.join(home, "Library", "LaunchAgents"),
     path.join(home, "Library", "Logs"),
     path.join(home, ".config"),
+    path.join(home, ".local", "bin"),
     path.join(home, ".mac-bootstrap")
   ]) {
     fs.mkdirSync(directory, { recursive: true });
@@ -209,18 +212,28 @@ function ensureDirectories(home, logger) {
   }
 }
 
+// $HOME/.local/bin is the conventional home for user-managed CLI launchers but
+// is not on PATH by default on macOS. Add it just behind Volta: each line
+// prepends, so the resulting order is ~/.volta/bin, then ~/.local/bin, then the
+// rest — Volta keeps runtime priority while user launchers still resolve.
+const LOCAL_BIN_LINE = "export PATH=\"$HOME/.local/bin:$PATH\"";
+const VOLTA_HOME_LINE = "export VOLTA_HOME=\"$HOME/.volta\"";
+const BASELINE_MARKER = "# mac-bootstrap managed baseline";
+const BASELINE_END = "# end mac-bootstrap managed baseline";
+
 function ensureZshrc(home, logger) {
   const zshrc = path.join(home, ".zshrc");
   const block = [
     "",
-    "# mac-bootstrap managed baseline",
+    BASELINE_MARKER,
     "export HOMEBREW_PREFIX=\"/opt/homebrew\"",
     "if [ -x \"$HOMEBREW_PREFIX/bin/brew\" ]; then",
     "  eval \"$($HOMEBREW_PREFIX/bin/brew shellenv)\"",
     "fi",
-    "export VOLTA_HOME=\"$HOME/.volta\"",
+    LOCAL_BIN_LINE,
+    VOLTA_HOME_LINE,
     "export PATH=\"$VOLTA_HOME/bin:$PATH\"",
-    "# end mac-bootstrap managed baseline",
+    BASELINE_END,
     ""
   ].join("\n");
 
@@ -231,12 +244,24 @@ function ensureZshrc(home, logger) {
   }
 
   const existing = fs.readFileSync(zshrc, "utf8");
-  if (!existing.includes("# mac-bootstrap managed baseline")) {
+  if (!existing.includes(BASELINE_MARKER)) {
     fs.appendFileSync(zshrc, block);
     logger.log(`Appended mac-bootstrap shell baseline to ${zshrc}`);
-  } else {
-    logger.log(`${zshrc} already contains mac-bootstrap shell baseline`);
+    return;
   }
+  if (!existing.includes(LOCAL_BIN_LINE)) {
+    // Upgrade an older managed block in place so already-bootstrapped machines
+    // also get ~/.local/bin on PATH. Insert ahead of Volta when present, else
+    // before the end marker. Guarded by the includes check above, so re-runs do
+    // not duplicate the line.
+    const updated = existing.includes(VOLTA_HOME_LINE)
+      ? existing.replace(VOLTA_HOME_LINE, `${LOCAL_BIN_LINE}\n${VOLTA_HOME_LINE}`)
+      : existing.replace(BASELINE_END, `${LOCAL_BIN_LINE}\n${BASELINE_END}`);
+    fs.writeFileSync(zshrc, updated);
+    logger.log(`Added ~/.local/bin to the mac-bootstrap shell baseline in ${zshrc}`);
+    return;
+  }
+  logger.log(`${zshrc} already contains mac-bootstrap shell baseline`);
 }
 
 function ensureXcodeCli(runner, logger) {
@@ -320,26 +345,25 @@ function ensureVoltaNode(runner, manifest, logger) {
   return { ok: true };
 }
 
-// Corepack ships with Node and provisions the exact pnpm/yarn version each
-// project pins in its package.json "packageManager" field. mac-bootstrap only
-// turns it on; per-project versions live in the projects, not on the machine.
+// Corepack provisions the exact pnpm/yarn version each project pins in its
+// package.json "packageManager" field. Volta only exposes tools on PATH that
+// were installed with `volta install`, so we install corepack through Volta to
+// get a `~/.volta/bin/corepack` shim, then enable it. Skipping the install step
+// leaves `corepack enable` running from the Node image bin dir Volta never puts
+// on PATH, so neither corepack nor pnpm becomes callable and `doctor` fails.
 function ensureCorepack(runner, logger) {
-  const command = resolveCorepackCommand(runner);
-  const result = runner.run(command, ["enable"]);
-  if (result.status !== 0) {
-    logger.error(`Failed to enable Corepack: ${result.stderr}`);
+  const installed = runner.run("volta", ["install", "corepack"]);
+  if (installed.status !== 0) {
+    logger.error(`Failed to install Corepack via Volta: ${installed.stderr}`);
     return { ok: false };
   }
-  logger.log("Enabled Corepack (per-project pnpm/yarn via packageManager field).");
-  return { ok: true };
-}
-
-function resolveCorepackCommand(runner) {
-  const resolved = runner.run("volta", ["which", "corepack"]);
-  if (resolved.status === 0 && resolved.stdout.trim()) {
-    return resolved.stdout.trim();
+  const enabled = runner.run("corepack", ["enable"]);
+  if (enabled.status !== 0) {
+    logger.error(`Failed to enable Corepack: ${enabled.stderr}`);
+    return { ok: false };
   }
-  return "corepack";
+  logger.log("Installed Corepack via Volta and enabled per-project pnpm/yarn (packageManager field).");
+  return { ok: true };
 }
 
 // uv owns Python interpreters (replacing brew python / pyenv). Seed a baseline

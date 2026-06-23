@@ -38,6 +38,7 @@ export async function doctor({
 
   emitCheck(checkDirectory(path.join(home, "Library", "LaunchAgents")));
   emitCheck(checkDirectory(path.join(home, "Library", "Logs")));
+  emitCheck(checkDirectory(path.join(home, ".local", "bin")));
   emitCheck(checkFile(path.join(repoRoot(), "launchd", "com.mac-bootstrap.nightly.plist"), "launchd template"));
   emitCheck(checkLaunchdState(home, runner));
   emitCheck(checkZshrc(path.join(home, ".zshrc")));
@@ -81,6 +82,7 @@ export function printDoctorPlan({ home, manifest, profiles, logger }) {
   logger.log(`[dry-run] enabled profiles: ${profiles && profiles.length > 0 ? profiles.join(", ") : "(none)"}`);
   logger.log(`[dry-run] check directory ${path.join(home, "Library", "LaunchAgents")}`);
   logger.log(`[dry-run] check directory ${path.join(home, "Library", "Logs")}`);
+  logger.log(`[dry-run] check directory ${path.join(home, ".local", "bin")}`);
   logger.log(`[dry-run] check launchd template`);
   logger.log(`[dry-run] check launchd job if plist has been installed`);
   logger.log(`[dry-run] check zsh baseline ${path.join(home, ".zshrc")}`);

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0] - 2026-06-23
+### Added
+- The managed `~/.zshrc` baseline now ensures `~/.local/bin` exists and is on `PATH` (placed just behind `~/.volta/bin`, so Volta keeps runtime priority) as a standard home for user-managed CLI launchers. Already-bootstrapped machines have their existing managed block upgraded in place, idempotently.
+- `doctor` now checks that `~/.local/bin` exists.
+
+## [0.6.2] - 2026-06-23
+### Fixed
+- Bootstrap now runs `volta install corepack` before `corepack enable`, so the `corepack` (and per-project `pnpm`/`yarn`) shims actually land on `PATH` under Volta. Previously it ran `corepack enable` from the Node image bin dir that Volta never exposes, leaving `corepack: command not found` and a failing `doctor` corepack check after a "successful" bootstrap. Supersedes the `0.5.1` approach.
+
+### Changed
+- Diagnostics remediation hint and the corepack help topic now point to `volta install corepack` as the step that makes corepack callable.
+
 ## [0.6.1] - 2026-06-20
 ### Fixed
 - Changed `nightly`'s npm-global updater from `npm install` to `npm update` to respect existing major versions and avoid applying breaking changes unattended.
