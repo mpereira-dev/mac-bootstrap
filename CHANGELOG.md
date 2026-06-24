@@ -2,6 +2,7 @@
 
 ## [0.8.0] - 2026-06-24
 ### Added
+- Branded ASCII banner (ANSI Shadow "MAC BOOTSTRAP" wordmark + titled version box) now heads the root help, matching the sibling CLIs (leak-guard, cert-check, gitlab-sync).
 - Preset codenames are now discoverable up front. Root help (`mac-bootstrap` / `--help`) carries a "Quick start" block listing every preset with its purpose, plus the one-word `--preset` command to apply one.
 - New `mac-bootstrap presets` and `mac-bootstrap profiles` listing commands print the full tables without the `--help` ceremony.
 - The interactive bootstrap picker now leads with the preset codenames: highlight one and press space to fill in its whole profile set, then confirm or fine-tune the individual profiles below. The non-interactive fallback prompt prints a `--preset` tip.

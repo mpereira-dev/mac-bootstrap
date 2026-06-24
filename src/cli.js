@@ -1,5 +1,6 @@
 import { pathToFileURL } from "node:url";
 import { parseArgs as parseBootstrapArgs } from "./args.js";
+import { renderBanner } from "./banner.js";
 import { bootstrap } from "./bootstrap.js";
 import { CommandRunner } from "./command-runner.js";
 import { doctor } from "./doctor.js";
@@ -74,7 +75,8 @@ export function resolveCommand(argv) {
 }
 
 export function printRootHelp(logger = console) {
-  logger.log("mac-bootstrap");
+  logger.log(renderBanner());
+  logger.log("");
   logger.log("Single operator surface for deterministic macOS bootstrap and upkeep.");
   logger.log("");
   logger.log("Usage: mac-bootstrap <command> [args]");

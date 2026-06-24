@@ -41,6 +41,14 @@ test("resolveCommand routes the presets and profiles listing commands", () => {
   assert.deepEqual(resolveCommand(["profiles"]), { mode: "list", command: "profiles" });
 });
 
+test("printRootHelp leads with the branded banner", () => {
+  const logger = new TestLogger();
+  printRootHelp(logger);
+  assert.match(logger.text(), /█/); // ANSI Shadow wordmark
+  assert.match(logger.text(), /┌─ mac-bootstrap ─+┐/);
+  assert.match(logger.text(), /└─+ v\d+\.\d+\.\d+ ─+┘/);
+});
+
 test("printRootHelp surfaces preset codenames in a quick-start block", () => {
   const logger = new TestLogger();
   printRootHelp(logger);
