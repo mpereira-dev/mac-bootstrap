@@ -39,6 +39,7 @@ export async function doctor({
   emitCheck(checkDirectory(path.join(home, "Library", "LaunchAgents")));
   emitCheck(checkDirectory(path.join(home, "Library", "Logs")));
   emitCheck(checkDirectory(path.join(home, ".local", "bin")));
+  emitCheck(checkLauncher(home));
   emitCheck(checkFile(path.join(repoRoot(), "launchd", "com.mac-bootstrap.nightly.plist"), "launchd template"));
   emitCheck(checkLaunchdState(home, runner));
   emitCheck(checkZshrc(path.join(home, ".zshrc")));
@@ -83,6 +84,7 @@ export function printDoctorPlan({ home, manifest, profiles, logger }) {
   logger.log(`[dry-run] check directory ${path.join(home, "Library", "LaunchAgents")}`);
   logger.log(`[dry-run] check directory ${path.join(home, "Library", "Logs")}`);
   logger.log(`[dry-run] check directory ${path.join(home, ".local", "bin")}`);
+  logger.log(`[dry-run] check mac-bootstrap launcher ${path.join(home, ".local", "bin", "mac-bootstrap")}`);
   logger.log(`[dry-run] check launchd template`);
   logger.log(`[dry-run] check launchd job if plist has been installed`);
   logger.log(`[dry-run] check zsh baseline ${path.join(home, ".zshrc")}`);
@@ -118,6 +120,24 @@ function checkFile(filePath, name) {
   return {
     name,
     ok: fs.existsSync(filePath) && fs.statSync(filePath).isFile()
+  };
+}
+
+// Verify bootstrap's self-registered launcher is present and executable, so the
+// `mac-bootstrap` command resolves from anywhere. Missing/non-executable drift
+// is repaired by a plain `mac-bootstrap bootstrap` run.
+function checkLauncher(home) {
+  const launcher = path.join(home, ".local", "bin", "mac-bootstrap");
+  const present = fs.existsSync(launcher) && fs.statSync(launcher).isFile();
+  const executable = present && (fs.statSync(launcher).mode & 0o111) !== 0;
+  return {
+    name: `mac-bootstrap launcher ${launcher}`,
+    ok: present && executable,
+    detail: present
+      ? executable
+        ? undefined
+        : "present but not executable; run mac-bootstrap bootstrap"
+      : "missing; run mac-bootstrap bootstrap to self-register"
   };
 }
 

@@ -25,6 +25,8 @@ test("doctor streams checks before later package checks run", async () => {
   fs.mkdirSync(path.join(home, "Library", "LaunchAgents"), { recursive: true });
   fs.mkdirSync(path.join(home, "Library", "Logs"), { recursive: true });
   fs.mkdirSync(path.join(home, ".local", "bin"), { recursive: true });
+  fs.writeFileSync(path.join(home, ".local", "bin", "mac-bootstrap"), "#!/usr/bin/env bash\nexec true\n");
+  fs.chmodSync(path.join(home, ".local", "bin", "mac-bootstrap"), 0o755);
   fs.writeFileSync(path.join(home, ".zshrc"), "# mac-bootstrap managed baseline\n");
   const manifest = loadManifest();
   const logger = new TestLogger();
@@ -51,6 +53,8 @@ test("doctor checks CLI casks by usable command", async () => {
   fs.mkdirSync(path.join(home, "Library", "LaunchAgents"), { recursive: true });
   fs.mkdirSync(path.join(home, "Library", "Logs"), { recursive: true });
   fs.mkdirSync(path.join(home, ".local", "bin"), { recursive: true });
+  fs.writeFileSync(path.join(home, ".local", "bin", "mac-bootstrap"), "#!/usr/bin/env bash\nexec true\n");
+  fs.chmodSync(path.join(home, ".local", "bin", "mac-bootstrap"), 0o755);
   fs.writeFileSync(path.join(home, ".zshrc"), "# mac-bootstrap managed baseline\n");
   const runner = new FakeRunner();
   const logger = new TestLogger();
@@ -72,11 +76,30 @@ test("doctor fails on expected version mismatch", async () => {
   fs.mkdirSync(path.join(home, "Library", "LaunchAgents"), { recursive: true });
   fs.mkdirSync(path.join(home, "Library", "Logs"), { recursive: true });
   fs.mkdirSync(path.join(home, ".local", "bin"), { recursive: true });
+  fs.writeFileSync(path.join(home, ".local", "bin", "mac-bootstrap"), "#!/usr/bin/env bash\nexec true\n");
+  fs.chmodSync(path.join(home, ".local", "bin", "mac-bootstrap"), 0o755);
   fs.writeFileSync(path.join(home, ".zshrc"), "# mac-bootstrap managed baseline\n");
   const logger = new TestLogger();
   const exitCode = await doctor({ home, runner, logger });
   assert.equal(exitCode, 1);
   assert.match(logger.text(), /fail - Node runtime/);
+});
+
+test("doctor fails when the self-registered launcher is missing", async () => {
+  const home = tempHome();
+  const manifest = loadManifest();
+  writeSavedSelections(home, ["core"]);
+  fs.mkdirSync(path.join(home, "Library", "LaunchAgents"), { recursive: true });
+  fs.mkdirSync(path.join(home, "Library", "Logs"), { recursive: true });
+  fs.mkdirSync(path.join(home, ".local", "bin"), { recursive: true });
+  fs.writeFileSync(path.join(home, ".zshrc"), "# mac-bootstrap managed baseline\n");
+  const runner = new FakeRunner({
+    formulae: manifest.formulae.filter((f) => f.profile === "core").map((f) => f.name)
+  });
+  const logger = new TestLogger();
+  const exitCode = await doctor({ home, runner, logger });
+  assert.equal(exitCode, 1);
+  assert.match(logger.text(), /fail - mac-bootstrap launcher .*missing/);
 });
 
 test("doctor dry-run prints checks and does nothing", async () => {
@@ -100,6 +123,8 @@ test("doctor skips disabled formulae and casks", async () => {
   fs.mkdirSync(path.join(home, "Library", "LaunchAgents"), { recursive: true });
   fs.mkdirSync(path.join(home, "Library", "Logs"), { recursive: true });
   fs.mkdirSync(path.join(home, ".local", "bin"), { recursive: true });
+  fs.writeFileSync(path.join(home, ".local", "bin", "mac-bootstrap"), "#!/usr/bin/env bash\nexec true\n");
+  fs.chmodSync(path.join(home, ".local", "bin", "mac-bootstrap"), 0o755);
   fs.writeFileSync(path.join(home, ".zshrc"), "# mac-bootstrap managed baseline\n");
   const runner = new FakeRunner({ formulae: coreFormulae });
   const logger = new TestLogger();

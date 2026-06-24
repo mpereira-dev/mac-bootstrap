@@ -123,6 +123,29 @@ test("bootstrap upgrades an existing managed block to add ~/.local/bin once", as
   assert.equal((zshrc.match(/\$HOME\/\.local\/bin/g) || []).length, 1);
 });
 
+test("bootstrap self-registers an executable ~/.local/bin/mac-bootstrap launcher", async () => {
+  const home = tempHome();
+  const runner = new FakeRunner();
+  const exitCode = await bootstrap({ home, runner, logger: new TestLogger(), profiles: ["core"], networkCheck: async () => true });
+  assert.equal(exitCode, 0);
+  const launcher = path.join(home, ".local", "bin", "mac-bootstrap");
+  assert.equal(fs.existsSync(launcher), true);
+  const script = fs.readFileSync(launcher, "utf8");
+  assert.match(script, /^#!\/usr\/bin\/env bash/);
+  assert.match(script, /exec ".*\/bin\/mac-bootstrap" "\$@"/);
+  // Executable bit set so the shell can run it directly.
+  assert.equal((fs.statSync(launcher).mode & 0o111) !== 0, true);
+});
+
+test("bootstrap dry-run previews the launcher install without writing it", async () => {
+  const home = tempHome();
+  const runner = new FakeRunner();
+  const logger = new TestLogger();
+  await bootstrap({ dryRun: true, home, runner, logger, profiles: ["core"], networkCheck: async () => true });
+  assert.match(logger.text(), /\[dry-run\] install launcher .*\.local\/bin\/mac-bootstrap ->/);
+  assert.equal(fs.existsSync(path.join(home, ".local", "bin", "mac-bootstrap")), false);
+});
+
 test("bootstrap installs Corepack through Volta so it lands on PATH", async () => {
   const home = tempHome();
   const runner = new FakeRunner();

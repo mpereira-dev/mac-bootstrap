@@ -239,6 +239,7 @@ const TREES = {
         body: () =>
           [
             "  • ~/Library/LaunchAgents and ~/Library/Logs exist",
+            "  • ~/.local/bin/mac-bootstrap launcher is present and executable",
             "  • the launchd nightly plist template is present in the repo",
             "  • the launchd job is loaded (only if you installed the plist)",
             "  • ~/.zshrc carries the mac-bootstrap managed baseline block",
@@ -276,6 +277,7 @@ const TREES = {
             "  • missing Corepack: run `volta install corepack` then `corepack enable`",
             "  • quarantined cask helper: run targeted `mac-bootstrap security --apply` with skips as needed",
             "  • missing zsh baseline: run `mac-bootstrap bootstrap` once for this HOME",
+            "  • missing/non-executable launcher: run `mac-bootstrap bootstrap` to self-register ~/.local/bin/mac-bootstrap",
             "  • launchd job missing: install the plist only after reviewing the template",
             "",
             "Use `mac-bootstrap doctor --dry-run` to see the check plan without invoking tools."

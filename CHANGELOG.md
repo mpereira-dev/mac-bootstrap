@@ -2,6 +2,8 @@
 
 ## [0.8.0] - 2026-06-24
 ### Added
+- Bootstrap now self-registers: it writes an executable `~/.local/bin/mac-bootstrap` launcher (execs the repo's `bin/mac-bootstrap` by absolute path) so the command resolves from anywhere after the first run. `~/.local/bin` is already created and put on PATH by bootstrap, so no extra setup is needed; `--dry-run` previews the launcher install.
+- `doctor` now verifies the `~/.local/bin/mac-bootstrap` launcher is present and executable, and flags missing/non-executable drift with a `mac-bootstrap bootstrap` repair hint.
 - Branded ASCII banner (ANSI Shadow "MAC BOOTSTRAP" wordmark + titled version box) now heads the root help, matching the sibling CLIs (leak-guard, cert-check, gitlab-sync).
 - Preset codenames are now discoverable up front. Root help (`mac-bootstrap` / `--help`) carries a "Quick start" block listing every preset with its purpose, plus the one-word `--preset` command to apply one.
 - New `mac-bootstrap presets` and `mac-bootstrap profiles` listing commands print the full tables without the `--help` ceremony.

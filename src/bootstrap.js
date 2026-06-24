@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { formatCommand } from "./command-runner.js";
-import { brewPath, filterByProfiles, loadManifest } from "./manifest.js";
+import { brewPath, filterByProfiles, loadManifest, repoRoot } from "./manifest.js";
 import { checkNetwork } from "./network.js";
 import { pickProfiles, pickProfilesInteractive } from "./prompt.js";
 import { defaultProfiles, loadSelections, resolvePreset, saveSelections, selectionsPath } from "./selections.js";
@@ -69,6 +69,9 @@ export async function bootstrap({
   ensureDirectories(home, logger);
   ensureZshrc(home, logger);
   const failures = [];
+  if (!ensureSelfLauncher(home, logger).ok) {
+    failures.push("self-launcher");
+  }
   if (!ensureXcodeCli(runner, logger).ok) {
     failures.push("xcode-cli-tools");
   }
@@ -180,6 +183,7 @@ export function printBootstrapPlan({ home, manifest, profiles, logger }) {
   logger.log(`[dry-run] ensure directory ${path.join(home, "Library", "Logs")}`);
   logger.log(`[dry-run] ensure directory ${path.join(home, ".local", "bin")}`);
   logger.log(`[dry-run] ensure minimal zsh config ${path.join(home, ".zshrc")} (PATH: ~/.volta/bin, ~/.local/bin)`);
+  logger.log(`[dry-run] install launcher ${path.join(home, ".local", "bin", "mac-bootstrap")} -> ${path.join(repoRoot(), "bin", "mac-bootstrap")}`);
   logger.log(`[dry-run] check ${formatCommand("xcode-select", ["-p"])}`);
   logger.log(`[dry-run] install Xcode CLI tools if missing`);
   logger.log(`[dry-run] install Homebrew at ${manifest.homebrewPrefix} if missing`);
@@ -262,6 +266,28 @@ function ensureZshrc(home, logger) {
     return;
   }
   logger.log(`${zshrc} already contains mac-bootstrap shell baseline`);
+}
+
+// Self-register: drop an executable launcher at ~/.local/bin/mac-bootstrap so the
+// command resolves from anywhere after the first bootstrap. ensureDirectories has
+// created the dir and ensureZshrc has put it on PATH (behind ~/.volta/bin). The
+// launcher execs the repo's POSIX entrypoint by absolute path, so editing the
+// repo is reflected immediately with no reinstall. Mirrors the ~/.local/bin
+// launcher pattern the sibling CLIs use for `install:global`.
+function ensureSelfLauncher(home, logger) {
+  const launcher = path.join(home, ".local", "bin", "mac-bootstrap");
+  const target = path.join(repoRoot(), "bin", "mac-bootstrap");
+  const script = `#!/usr/bin/env bash\nexec ${JSON.stringify(target)} "$@"\n`;
+  try {
+    fs.mkdirSync(path.dirname(launcher), { recursive: true });
+    fs.writeFileSync(launcher, script, { mode: 0o755 });
+    fs.chmodSync(launcher, 0o755);
+    logger.log(`Installed mac-bootstrap launcher at ${launcher}`);
+    return { ok: true };
+  } catch (error) {
+    logger.error(`Failed to install mac-bootstrap launcher: ${error.message}`);
+    return { ok: false };
+  }
 }
 
 function ensureXcodeCli(runner, logger) {
