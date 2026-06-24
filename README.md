@@ -45,6 +45,8 @@ the full Node CLI.
 ## Common Commands
 
 ```sh
+./bin/mac-bootstrap presets                 # list preset codenames and what they install
+./bin/mac-bootstrap profiles                # list package profiles and their defaults
 ./bin/mac-bootstrap bootstrap --reconfigure
 ./bin/mac-bootstrap bootstrap --preset ranger
 ./bin/mac-bootstrap bootstrap --profiles=core,node,cloud

@@ -27,6 +27,13 @@ export async function pickProfiles({ manifest, logger, defaults, input, output, 
   const defaultsSet = new Set(defaults);
 
   logger.log("");
+  const presetNames = Object.keys(manifest.presets || {});
+  if (presetNames.length > 0) {
+    logger.log(
+      `Tip: skip these prompts with a preset — e.g. \`--preset ${presetNames[0]}\` (${presetNames.join(", ")}).`
+    );
+    logger.log("");
+  }
   logger.log("Available profiles:");
   for (const name of profileNames) {
     const def = manifest.profiles[name] || {};
@@ -64,10 +71,14 @@ export function packagesForProfile(manifest, profileName) {
 // mode + ANSI cursor control. Bootstrap auto-falls-back to pickProfiles when
 // stdin is not a TTY (CI, tests, redirected input).
 //
+// The cursor walks a combined list: preset codenames first (a shortcut that
+// fills in a whole profile set), then the per-profile toggles. When the manifest
+// declares no presets the list is just the profiles, so behaviour is unchanged.
+//
 // Controls:
 //   ↑ / ↓ / j / k   move the cursor
-//   space           toggle the current row
-//   a               toggle all
+//   space           toggle a profile row, or apply a preset row
+//   a               toggle all profiles
 //   enter           confirm
 //   q / esc / ctrl-c cancel (throws so bootstrap can exit cleanly)
 export async function pickProfilesInteractive({
@@ -80,27 +91,53 @@ export async function pickProfilesInteractive({
   if (profileNames.length === 0) {
     return [];
   }
+  const presetNames = Object.keys(manifest.presets || {});
+
+  // Presets lead so the one-word shortcut is the first thing the cursor lands
+  // on; profiles follow for fine-grained toggling.
+  const rows = [
+    ...presetNames.map((name) => ({ kind: "preset", name })),
+    ...profileNames.map((name) => ({ kind: "profile", name }))
+  ];
 
   const selected = new Set(defaults);
   let cursor = 0;
   let linesWritten = 0;
 
+  // A preset row reads as [x] when the current selection is exactly its set.
+  const matchesPreset = (name) => {
+    const want = (manifest.presets[name].profiles || []).filter((p) => profileNames.includes(p));
+    return want.length === selected.size && want.every((p) => selected.has(p));
+  };
+
   const composeFrame = () => {
     const lines = [];
-    lines.push("Select profiles to enable.");
-    lines.push("  ↑/↓ navigate   space toggle   a toggle all   enter confirm   q cancel");
-    lines.push("");
-    for (let i = 0; i < profileNames.length; i += 1) {
-      const name = profileNames[i];
-      const def = manifest.profiles[name] || {};
-      const isOn = selected.has(name);
+    lines.push("Select profiles to enable — or pick a preset to fill them in.");
+    lines.push("  ↑/↓ navigate   space toggle/apply   a toggle all   enter confirm   q cancel");
+    let lastKind = null;
+    for (let i = 0; i < rows.length; i += 1) {
+      const row = rows[i];
+      if (row.kind !== lastKind) {
+        lines.push("");
+        lines.push(row.kind === "preset" ? "Presets (one word → a profile set):" : "Profiles:");
+        lastKind = row.kind;
+      }
       const isHere = i === cursor;
       const pointer = isHere ? "❯" : " ";
-      const box = isOn ? "[x]" : "[ ]";
-      const packages = packagesForProfile(manifest, name).join(", ") || "(no packages)";
-      const title = `${pointer} ${box} ${name.padEnd(8)}  ${def.description || ""}`.trimEnd();
-      lines.push(title);
-      lines.push(`         ${packages}`);
+      if (row.kind === "preset") {
+        const def = manifest.presets[row.name] || {};
+        const box = matchesPreset(row.name) ? "[x]" : "[ ]";
+        const title = `${pointer} ${box} ${row.name.padEnd(8)}  ${def.description || ""}`.trimEnd();
+        lines.push(title);
+        lines.push(`         ${(def.profiles || []).join(", ")}`);
+      } else {
+        const def = manifest.profiles[row.name] || {};
+        const box = selected.has(row.name) ? "[x]" : "[ ]";
+        const packages = packagesForProfile(manifest, row.name).join(", ") || "(no packages)";
+        const title = `${pointer} ${box} ${row.name.padEnd(8)}  ${def.description || ""}`.trimEnd();
+        lines.push(title);
+        lines.push(`         ${packages}`);
+      }
     }
     lines.push("");
     const enabled = profileNames.filter((name) => selected.has(name));
@@ -146,28 +183,35 @@ export async function pickProfilesInteractive({
         return;
       }
       if (key.name === "up" || key.name === "k") {
-        cursor = (cursor - 1 + profileNames.length) % profileNames.length;
+        cursor = (cursor - 1 + rows.length) % rows.length;
         renderFrame();
         return;
       }
       if (key.name === "down" || key.name === "j") {
-        cursor = (cursor + 1) % profileNames.length;
+        cursor = (cursor + 1) % rows.length;
         renderFrame();
         return;
       }
       if (key.name === "space") {
-        const name = profileNames[cursor];
-        if (selected.has(name)) {
-          selected.delete(name);
+        const row = rows[cursor];
+        if (row.kind === "preset") {
+          // Applying a preset replaces the current selection with its set.
+          selected.clear();
+          for (const profile of manifest.presets[row.name].profiles || []) {
+            if (profileNames.includes(profile)) selected.add(profile);
+          }
+        } else if (selected.has(row.name)) {
+          selected.delete(row.name);
         } else {
-          selected.add(name);
+          selected.add(row.name);
         }
         renderFrame();
         return;
       }
       if (key.name === "a") {
-        if (selected.size === profileNames.length) {
-          selected.clear();
+        // Toggle-all acts on profiles only; presets are shortcuts, not toggles.
+        if (profileNames.every((name) => selected.has(name))) {
+          for (const name of profileNames) selected.delete(name);
         } else {
           for (const name of profileNames) selected.add(name);
         }

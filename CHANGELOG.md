@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0] - 2026-06-24
+### Added
+- Preset codenames are now discoverable up front. Root help (`mac-bootstrap` / `--help`) carries a "Quick start" block listing every preset with its purpose, plus the one-word `--preset` command to apply one.
+- New `mac-bootstrap presets` and `mac-bootstrap profiles` listing commands print the full tables without the `--help` ceremony.
+- The interactive bootstrap picker now leads with the preset codenames: highlight one and press space to fill in its whole profile set, then confirm or fine-tune the individual profiles below. The non-interactive fallback prompt prints a `--preset` tip.
+
+### Changed
+- The `--help presets` and `--help profiles` topic footers now point at the new standalone listing commands.
+
+### Fixed
+- First-run `corepack enable` no longer fails with `ENOENT`. On a fresh machine the just-written `~/.zshrc` has not been sourced yet, so `~/.volta/bin` is not on the live `PATH`; bootstrap now invokes the Volta `corepack` shim by absolute path and prepends `~/.volta/bin` to the spawn's `PATH`, falling back to a bare `corepack` only when the shim is absent. (Restores the fix that was lost when this branch was rebaselined from a pre-0.7.1 snapshot.)
+
 ## [0.7.0] - 2026-06-23
 ### Added
 - The managed `~/.zshrc` baseline now ensures `~/.local/bin` exists and is on `PATH` (placed just behind `~/.volta/bin`, so Volta keeps runtime priority) as a standard home for user-managed CLI launchers. Already-bootstrapped machines have their existing managed block upgraded in place, idempotently.

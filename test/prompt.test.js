@@ -146,6 +146,54 @@ test("pickProfilesInteractive toggles all with a", async () => {
   assert.deepEqual(await promise, ["core", "ai", "mobile"]);
 });
 
+test("pickProfilesInteractive applies a preset with space", async () => {
+  const manifest = {
+    profiles: { core: {}, node: {}, ai: {}, cloud: {} },
+    presets: {
+      scout: { profiles: ["core", "node"] },
+      maverick: { profiles: ["core", "node", "ai", "cloud"] }
+    },
+    formulae: [],
+    casks: []
+  };
+  const input = fakeTtyInput();
+  const promise = pickProfilesInteractive({
+    manifest,
+    defaults: [],
+    input,
+    output: silentOutput()
+  });
+  // Cursor starts on the first preset (scout). Space applies it, then confirm.
+  process.nextTick(() => {
+    input.emit("keypress", "", { name: "space" });
+    input.emit("keypress", "", { name: "return" });
+  });
+  assert.deepEqual(await promise, ["core", "node"]);
+});
+
+test("pickProfilesInteractive presets lead the profile rows in cursor order", async () => {
+  const manifest = {
+    profiles: { core: {}, node: {}, ai: {} },
+    presets: { maverick: { profiles: ["core", "node", "ai"] } },
+    formulae: [],
+    casks: []
+  };
+  const input = fakeTtyInput();
+  const promise = pickProfilesInteractive({
+    manifest,
+    defaults: [],
+    input,
+    output: silentOutput()
+  });
+  // Row 0 is the preset; down lands on the first profile (core), space toggles it.
+  process.nextTick(() => {
+    input.emit("keypress", "", { name: "down" });
+    input.emit("keypress", "", { name: "space" });
+    input.emit("keypress", "", { name: "return" });
+  });
+  assert.deepEqual(await promise, ["core"]);
+});
+
 test("pickProfilesInteractive rejects on q", async () => {
   const manifest = {
     profiles: { core: {} },

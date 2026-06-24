@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { printHelp, renderProfileTable, renderTable } from "../src/help.js";
+import {
+  presetLines,
+  printHelp,
+  printPresets,
+  printProfiles,
+  renderProfileTable,
+  renderTable
+} from "../src/help.js";
 import { loadManifest } from "../src/manifest.js";
 import { resolvePreset } from "../src/selections.js";
 import { TestLogger } from "./helpers.js";
@@ -142,6 +149,33 @@ test("printHelp renders the preset table", () => {
   assert.equal(code, 0);
   assert.match(logger.text(), /Preset/);
   assert.match(logger.text(), /ranger .* core, node, python, cloud/);
+});
+
+test("presetLines yields a compact name/purpose row per preset", () => {
+  const lines = presetLines(loadManifest());
+  assert.equal(lines.length, 5);
+  assert.match(lines.join("\n"), /scout\s+Any machine/);
+  assert.deepEqual(presetLines({ profiles: {} }), []);
+});
+
+test("printPresets lists the table and the apply command", () => {
+  const logger = new TestLogger();
+  const code = printPresets({ logger });
+  assert.equal(code, 0);
+  assert.match(logger.text(), /┌/); // the table
+  assert.match(logger.text(), /ranger .* core, node, python, cloud/);
+  assert.match(logger.text(), /mac-bootstrap bootstrap --preset scout/);
+  assert.match(logger.text(), /mac-bootstrap profiles/);
+});
+
+test("printProfiles lists the profile table and exact-set usage", () => {
+  const logger = new TestLogger();
+  const code = printProfiles({ logger });
+  assert.equal(code, 0);
+  assert.match(logger.text(), /core .* on/);
+  assert.match(logger.text(), /ai .* off/);
+  assert.match(logger.text(), /--profiles=core,node,cloud/);
+  assert.match(logger.text(), /mac-bootstrap presets/);
 });
 
 test("resolvePreset maps codenames to profiles and rejects unknowns", () => {

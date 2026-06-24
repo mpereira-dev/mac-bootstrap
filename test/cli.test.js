@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseMigrateArgs, parseSecurityArgs, resolveCommand } from "../src/cli.js";
+import { parseMigrateArgs, parseSecurityArgs, printRootHelp, resolveCommand } from "../src/cli.js";
+import { TestLogger } from "./helpers.js";
 
 test("resolveCommand routes canonical commands", () => {
   assert.deepEqual(resolveCommand(["doctor", "--help", "checks"]), {
@@ -33,6 +34,22 @@ test("resolveCommand reports unknown top-level commands", () => {
     mode: "unknown",
     command: "nope"
   });
+});
+
+test("resolveCommand routes the presets and profiles listing commands", () => {
+  assert.deepEqual(resolveCommand(["presets"]), { mode: "list", command: "presets" });
+  assert.deepEqual(resolveCommand(["profiles"]), { mode: "list", command: "profiles" });
+});
+
+test("printRootHelp surfaces preset codenames in a quick-start block", () => {
+  const logger = new TestLogger();
+  printRootHelp(logger);
+  assert.match(logger.text(), /Quick start/);
+  assert.match(logger.text(), /scout/);
+  assert.match(logger.text(), /maverick/);
+  // the new listing commands are advertised in the command list
+  assert.match(logger.text(), /presets\s+List the preset codenames/);
+  assert.match(logger.text(), /profiles\s+List the package profiles/);
 });
 
 test("parseMigrateArgs preserves positional tool arguments", () => {

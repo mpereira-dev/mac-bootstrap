@@ -67,6 +67,50 @@ export function renderPresetTable(manifest) {
   return renderTable(["Preset", "Profiles", "Purpose"], rows);
 }
 
+// Compact `name  purpose` lines for the root-help quick-start teaser. Returns []
+// when the manifest declares no presets, so callers can omit the section.
+export function presetLines(manifest) {
+  const presets = manifest.presets || {};
+  const names = Object.keys(presets);
+  if (names.length === 0) {
+    return [];
+  }
+  const width = Math.max(...names.map((name) => name.length));
+  return names.map((name) => {
+    const def = presets[name] || {};
+    const detail = def.description || (def.profiles || []).join(", ");
+    return `  ${name.padEnd(width)}  ${detail}`;
+  });
+}
+
+// Standalone `mac-bootstrap presets` listing — the same table as the help topic
+// but reachable without the --help ceremony, so codenames are discoverable.
+export function printPresets({ manifest, logger = console } = {}) {
+  const resolved = manifest || loadManifest();
+  logger.log("Presets — one word that expands to a full profile set:");
+  logger.log("");
+  logger.log(renderPresetTable(resolved));
+  logger.log("");
+  logger.log("Apply one (skips the prompt, saves the selection):");
+  const first = Object.keys(resolved.presets || {})[0] || "scout";
+  logger.log(`  mac-bootstrap bootstrap --preset ${first}`);
+  logger.log("");
+  logger.log("List the underlying groups with `mac-bootstrap profiles`.");
+  return 0;
+}
+
+// Standalone `mac-bootstrap profiles` listing — companion to printPresets.
+export function printProfiles({ manifest, logger = console } = {}) {
+  const resolved = manifest || loadManifest();
+  logger.log("Profiles — package groups you can toggle (Default = on for a plain --yes run):");
+  logger.log("");
+  logger.log(renderProfileTable(resolved));
+  logger.log("");
+  logger.log("Enable an exact set:  mac-bootstrap bootstrap --profiles=core,node,cloud");
+  logger.log("Prefer a one-word codename? Run `mac-bootstrap presets`.");
+  return 0;
+}
+
 // --- help content tree -------------------------------------------------------
 //
 // Each node: { summary, usage?, body?(ctx)->string, topics?: { name: node } }.
@@ -95,8 +139,9 @@ const TREES = {
             "Default = installed on a plain `--yes` run. Every profile is offered in",
             "the interactive picker; off-by-default ones just start unchecked.",
             "Your choice is saved to ~/.mac-bootstrap/profiles.json and reused after.",
+            "List them anytime with `mac-bootstrap profiles` (no --help needed).",
             "",
-            "Prefer a one-word codename? See `--help presets`."
+            "Prefer a one-word codename? See `--help presets` or `mac-bootstrap presets`."
           ].join("\n"),
         topics: {
           selection: {
@@ -125,6 +170,7 @@ const TREES = {
             "Use one with --preset, e.g. `mac-bootstrap bootstrap --preset ranger`. A preset",
             "behaves like --profiles: it skips the prompt and saves the selection, so",
             "you get the same laptop with one word on every machine.",
+            "List them anytime with `mac-bootstrap presets` (no --help needed).",
             "Edit the `presets` block in packages.json to rename or add your own."
           ].join("\n")
       },

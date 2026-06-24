@@ -95,7 +95,7 @@ export async function bootstrap({
     if (!nodeResult.ok) {
       failures.push(`node:${manifest.defaultNode}`);
     }
-    if (!ensureCorepack(runner, logger).ok) {
+    if (!ensureCorepack(runner, home, logger).ok) {
       failures.push("corepack");
     }
   }
@@ -351,13 +351,23 @@ function ensureVoltaNode(runner, manifest, logger) {
 // get a `~/.volta/bin/corepack` shim, then enable it. Skipping the install step
 // leaves `corepack enable` running from the Node image bin dir Volta never puts
 // on PATH, so neither corepack nor pnpm becomes callable and `doctor` fails.
-function ensureCorepack(runner, logger) {
+function ensureCorepack(runner, home, logger) {
   const installed = runner.run("volta", ["install", "corepack"]);
   if (installed.status !== 0) {
     logger.error(`Failed to install Corepack via Volta: ${installed.stderr}`);
     return { ok: false };
   }
-  const enabled = runner.run("corepack", ["enable"]);
+  // On the very first bootstrap run the freshly-written ~/.zshrc has not been
+  // sourced, so ~/.volta/bin is not on the live PATH and a bare `corepack enable`
+  // dies with ENOENT. Call the Volta shim by absolute path and prepend its dir to
+  // PATH for the spawn; fall back to bare `corepack` only when the shim is absent
+  // (older Volta layouts), preserving the previous behaviour there.
+  const voltaBin = path.join(home, ".volta", "bin");
+  const shim = path.join(voltaBin, "corepack");
+  const command = fs.existsSync(shim) ? shim : "corepack";
+  const enabled = runner.run(command, ["enable"], {
+    env: { PATH: `${voltaBin}${path.delimiter}${process.env.PATH ?? ""}` }
+  });
   if (enabled.status !== 0) {
     logger.error(`Failed to enable Corepack: ${enabled.stderr}`);
     return { ok: false };

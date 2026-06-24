@@ -3,13 +3,17 @@ import { parseArgs as parseBootstrapArgs } from "./args.js";
 import { bootstrap } from "./bootstrap.js";
 import { CommandRunner } from "./command-runner.js";
 import { doctor } from "./doctor.js";
-import { printHelp } from "./help.js";
+import { presetLines, printHelp, printPresets, printProfiles } from "./help.js";
 import { ConsoleLogger, PlainConsoleLogger } from "./logger.js";
+import { loadManifest } from "./manifest.js";
 import { migrate } from "./migrate.js";
 import { nightly } from "./nightly.js";
 import { detectAll, MODULES } from "./security/index.js";
 
 const COMMANDS = new Set(["bootstrap", "doctor", "nightly", "migrate", "security"]);
+// Lightweight read-only listing commands. They share no install machinery with
+// COMMANDS, so they route straight to a printer rather than runCommand.
+const LIST_COMMANDS = new Set(["presets", "profiles"]);
 
 export async function main(
   argv = process.argv.slice(2),
@@ -33,6 +37,11 @@ export async function main(
       }
       return printHelp(resolved.command, resolved.args, { logger: helpLogger });
     }
+    if (resolved.mode === "list") {
+      return resolved.command === "presets"
+        ? printPresets({ logger: helpLogger })
+        : printProfiles({ logger: helpLogger });
+    }
     return await runCommand(resolved.command, resolved.args, { logger, helpLogger, env });
   } catch (error) {
     logger.error(error.message);
@@ -51,6 +60,9 @@ export function resolveCommand(argv) {
       return { mode: "unknown", command };
     }
     return { mode: "help", command, args: topics };
+  }
+  if (LIST_COMMANDS.has(first)) {
+    return { mode: "list", command: first };
   }
   if (COMMANDS.has(first)) {
     return { mode: "command", command: first, args: rest };
@@ -73,6 +85,31 @@ export function printRootHelp(logger = console) {
   logger.log("  nightly    Run unattended maintenance");
   logger.log("  migrate    Move unmanaged tools onto managed installs");
   logger.log("  security   Detect and apply local security hardening");
+  logger.log("  presets    List the preset codenames and what they install");
+  logger.log("  profiles   List the package profiles and their defaults");
+
+  // Quick-start teaser: surface the preset codenames up front so a first-time
+  // user sees the one-word path without digging into the help tree. Loaded
+  // lazily and guarded so a missing/broken manifest never breaks root help.
+  let manifest = null;
+  try {
+    manifest = loadManifest();
+  } catch {
+    manifest = null;
+  }
+  const presetNames = manifest ? Object.keys(manifest.presets || {}) : [];
+  if (presetNames.length > 0) {
+    logger.log("");
+    logger.log("Quick start — a preset is one word that expands to a full profile set:");
+    for (const line of presetLines(manifest)) {
+      logger.log(line);
+    }
+    logger.log("");
+    logger.log(`  mac-bootstrap bootstrap --preset ${presetNames[0]}   install that set, no prompts`);
+    logger.log("  mac-bootstrap bootstrap                    first run: pick profiles interactively");
+    logger.log("  mac-bootstrap presets                      show this list again");
+  }
+
   logger.log("");
   logger.log("Compatibility:");
   logger.log("  mac-bootstrap --dry-run      same as mac-bootstrap bootstrap --dry-run");

@@ -130,7 +130,22 @@ test("bootstrap installs Corepack through Volta so it lands on PATH", async () =
   const exitCode = await bootstrap({ home, runner, logger, profiles: ["node"], networkCheck: async () => true });
   assert.equal(exitCode, 0);
   assert.ok(runner.calls.some((call) => call.join(" ") === "volta install corepack"));
+  // No ~/.volta/bin/corepack shim in the temp home, so it falls back to bare `corepack`.
   assert.ok(runner.calls.some((call) => call.join(" ") === "corepack enable"));
+});
+
+test("bootstrap enables Corepack via the absolute Volta shim when present", async () => {
+  const home = tempHome();
+  const voltaBin = path.join(home, ".volta", "bin");
+  fs.mkdirSync(voltaBin, { recursive: true });
+  const shim = path.join(voltaBin, "corepack");
+  fs.writeFileSync(shim, "#!/bin/sh\n", { mode: 0o755 });
+  const runner = new FakeRunner();
+  const exitCode = await bootstrap({ home, runner, logger: new TestLogger(), profiles: ["node"], networkCheck: async () => true });
+  assert.equal(exitCode, 0);
+  // The fresh-shell ENOENT fix: enable through the absolute shim, not bare `corepack`.
+  assert.ok(runner.calls.some((call) => call.join(" ") === `${shim} enable`));
+  assert.equal(runner.calls.some((call) => call.join(" ") === "corepack enable"), false);
 });
 
 test("bootstrap prompts on first run and saves every accepted profile", async () => {
