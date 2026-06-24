@@ -2,6 +2,7 @@ import { pathToFileURL } from "node:url";
 import { parseArgs as parseBootstrapArgs } from "./args.js";
 import { renderBanner } from "./banner.js";
 import { bootstrap } from "./bootstrap.js";
+import { colorize, heading, resolveUseColor } from "./colors.js";
 import { CommandRunner } from "./command-runner.js";
 import { doctor } from "./doctor.js";
 import { presetLines, printHelp, printPresets, printProfiles } from "./help.js";
@@ -68,27 +69,41 @@ export function resolveCommand(argv) {
   if (COMMANDS.has(first)) {
     return { mode: "command", command: first, args: rest };
   }
-  if (!first || first.startsWith("-")) {
+  if (!first) {
+    // Bare `mac-bootstrap` shows the help banner; running the installer now
+    // requires the explicit `bootstrap` subcommand (no accidental installs).
+    return { mode: "root-help" };
+  }
+  if (first.startsWith("-")) {
+    // Back-compat: `mac-bootstrap --dry-run` == `mac-bootstrap bootstrap --dry-run`.
     return { mode: "command", command: "bootstrap", args: argv };
   }
   return { mode: "unknown", command: first };
 }
 
 export function printRootHelp(logger = console) {
+  const useColor = resolveUseColor(undefined, process.stdout);
+  const c = (text, style) => colorize(text, style, useColor);
+  // A two-column command/description row: bold-cyan name (like leak-guard's
+  // subcommandTerm), plain description. Padding lives outside the color wrap so
+  // the column gap is never styled or eaten.
+  const term = (name) => colorize(colorize(name, "cyan", useColor), "bold", useColor);
+  const row = (name, description) => `  ${term(name)}${" ".repeat(Math.max(2, 11 - name.length))}${description}`;
+
   logger.log(renderBanner());
   logger.log("");
-  logger.log("Single operator surface for deterministic macOS bootstrap and upkeep.");
+  logger.log(c("Single operator surface for deterministic macOS bootstrap and upkeep.", "dim"));
   logger.log("");
-  logger.log("Usage: mac-bootstrap <command> [args]");
+  logger.log(`${heading("Usage:", useColor)} mac-bootstrap <command> [args]`);
   logger.log("");
-  logger.log("Commands:");
-  logger.log("  bootstrap  Install the owner-approved baseline");
-  logger.log("  doctor     Verify the laptop matches the expected baseline");
-  logger.log("  nightly    Run unattended maintenance");
-  logger.log("  migrate    Move unmanaged tools onto managed installs");
-  logger.log("  security   Detect and apply local security hardening");
-  logger.log("  presets    List the preset codenames and what they install");
-  logger.log("  profiles   List the package profiles and their defaults");
+  logger.log(heading("Commands:", useColor));
+  logger.log(row("bootstrap", "Install the owner-approved baseline"));
+  logger.log(row("doctor", "Verify the laptop matches the expected baseline"));
+  logger.log(row("nightly", "Run unattended maintenance"));
+  logger.log(row("migrate", "Move unmanaged tools onto managed installs"));
+  logger.log(row("security", "Detect and apply local security hardening"));
+  logger.log(row("presets", "List the preset codenames and what they install"));
+  logger.log(row("profiles", "List the package profiles and their defaults"));
 
   // Quick-start teaser: surface the preset codenames up front so a first-time
   // user sees the one-word path without digging into the help tree. Loaded
@@ -102,22 +117,22 @@ export function printRootHelp(logger = console) {
   const presetNames = manifest ? Object.keys(manifest.presets || {}) : [];
   if (presetNames.length > 0) {
     logger.log("");
-    logger.log("Quick start — a preset is one word that expands to a full profile set:");
+    logger.log(heading("Quick start", useColor) + " — a preset is one word that expands to a full profile set:");
     for (const line of presetLines(manifest)) {
       logger.log(line);
     }
     logger.log("");
-    logger.log(`  mac-bootstrap bootstrap --preset ${presetNames[0]}   install that set, no prompts`);
-    logger.log("  mac-bootstrap bootstrap                    first run: pick profiles interactively");
-    logger.log("  mac-bootstrap presets                      show this list again");
+    logger.log(`  ${c(`mac-bootstrap bootstrap --preset ${presetNames[0]}`, "cyan")}   install that set, no prompts`);
+    logger.log(`  ${c("mac-bootstrap bootstrap", "cyan")}                    first run: pick profiles interactively`);
+    logger.log(`  ${c("mac-bootstrap presets", "cyan")}                      show this list again`);
   }
 
   logger.log("");
-  logger.log("Compatibility:");
+  logger.log(heading("Compatibility:", useColor));
   logger.log("  mac-bootstrap --dry-run      same as mac-bootstrap bootstrap --dry-run");
   logger.log("  ./bin/<command>              still works as a command shortcut");
   logger.log("");
-  logger.log("More help:");
+  logger.log(heading("More help:", useColor));
   logger.log("  mac-bootstrap help <command> [topic...]");
   logger.log("  mac-bootstrap <command> --help [topic...]");
 }

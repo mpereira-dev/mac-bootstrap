@@ -1,3 +1,4 @@
+import { colorize, heading, resolveUseColor } from "./colors.js";
 import { loadManifest } from "./manifest.js";
 import { packagesForProfile } from "./prompt.js";
 
@@ -69,7 +70,7 @@ export function renderPresetTable(manifest) {
 
 // Compact `name  purpose` lines for the root-help quick-start teaser. Returns []
 // when the manifest declares no presets, so callers can omit the section.
-export function presetLines(manifest) {
+export function presetLines(manifest, useColor = resolveUseColor(undefined, process.stdout)) {
   const presets = manifest.presets || {};
   const names = Object.keys(presets);
   if (names.length === 0) {
@@ -79,7 +80,7 @@ export function presetLines(manifest) {
   return names.map((name) => {
     const def = presets[name] || {};
     const detail = def.description || (def.profiles || []).join(", ");
-    return `  ${name.padEnd(width)}  ${detail}`;
+    return `  ${colorize(name.padEnd(width), "cyan", useColor)}  ${detail}`;
   });
 }
 
@@ -87,13 +88,14 @@ export function presetLines(manifest) {
 // but reachable without the --help ceremony, so codenames are discoverable.
 export function printPresets({ manifest, logger = console } = {}) {
   const resolved = manifest || loadManifest();
-  logger.log("Presets — one word that expands to a full profile set:");
+  const useColor = resolveUseColor(undefined, process.stdout);
+  logger.log(heading("Presets", useColor) + " — one word that expands to a full profile set:");
   logger.log("");
   logger.log(renderPresetTable(resolved));
   logger.log("");
   logger.log("Apply one (skips the prompt, saves the selection):");
   const first = Object.keys(resolved.presets || {})[0] || "scout";
-  logger.log(`  mac-bootstrap bootstrap --preset ${first}`);
+  logger.log(`  ${colorize(`mac-bootstrap bootstrap --preset ${first}`, "cyan", useColor)}`);
   logger.log("");
   logger.log("List the underlying groups with `mac-bootstrap profiles`.");
   return 0;
@@ -102,7 +104,8 @@ export function printPresets({ manifest, logger = console } = {}) {
 // Standalone `mac-bootstrap profiles` listing — companion to printPresets.
 export function printProfiles({ manifest, logger = console } = {}) {
   const resolved = manifest || loadManifest();
-  logger.log("Profiles — package groups you can toggle (Default = on for a plain --yes run):");
+  const useColor = resolveUseColor(undefined, process.stdout);
+  logger.log(heading("Profiles", useColor) + " — package groups you can toggle (Default = on for a plain --yes run):");
   logger.log("");
   logger.log(renderProfileTable(resolved));
   logger.log("");
@@ -532,17 +535,17 @@ const TREES = {
 
 // --- printer -----------------------------------------------------------------
 
-function listTopics(node, command, trail, logger) {
+function listTopics(node, command, trail, logger, useColor) {
   const topics = node.topics || {};
   const names = Object.keys(topics);
   if (names.length === 0) {
     return;
   }
   logger.log("");
-  logger.log("More help:");
+  logger.log(heading("More help:", useColor));
   const width = Math.max(...names.map((name) => name.length));
   for (const name of names) {
-    logger.log(`  ${name.padEnd(width)}   ${topics[name].summary}`);
+    logger.log(`  ${colorize(name.padEnd(width), "cyan", useColor)}   ${topics[name].summary}`);
   }
   const path = trail.slice(1).concat("<topic>").join(" ");
   logger.log("");
@@ -558,6 +561,7 @@ export function printHelp(command, topicPath = [], { manifest, logger = console 
     return 1;
   }
   const ctx = { manifest: manifest || loadManifest() };
+  const useColor = resolveUseColor(undefined, process.stdout);
 
   let node = root;
   const trail = [command];
@@ -572,16 +576,16 @@ export function printHelp(command, topicPath = [], { manifest, logger = console 
     trail.push(segment);
   }
 
-  logger.log(trail.join(" › "));
+  logger.log(heading(trail.join(" › "), useColor));
   logger.log(node.summary);
   if (node.usage) {
     logger.log("");
-    logger.log(`Usage: ${node.usage}`);
+    logger.log(`${heading("Usage:", useColor)} ${node.usage}`);
   }
   if (typeof node.body === "function") {
     logger.log("");
     logger.log(node.body(ctx));
   }
-  listTopics(node, command, trail, logger);
+  listTopics(node, command, trail, logger, useColor);
   return 0;
 }

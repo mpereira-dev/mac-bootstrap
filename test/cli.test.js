@@ -16,16 +16,16 @@ test("resolveCommand routes canonical commands", () => {
   });
 });
 
-test("resolveCommand preserves bare mac-bootstrap bootstrap compatibility", () => {
+test("resolveCommand shows root help for a bare invocation", () => {
+  assert.deepEqual(resolveCommand([]), { mode: "root-help" });
+});
+
+test("resolveCommand preserves flags-first bootstrap compatibility", () => {
+  // `mac-bootstrap --dry-run` still means `mac-bootstrap bootstrap --dry-run`.
   assert.deepEqual(resolveCommand(["--dry-run"]), {
     mode: "command",
     command: "bootstrap",
     args: ["--dry-run"]
-  });
-  assert.deepEqual(resolveCommand([]), {
-    mode: "command",
-    command: "bootstrap",
-    args: []
   });
 });
 

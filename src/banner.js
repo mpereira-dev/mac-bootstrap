@@ -32,6 +32,9 @@ export function renderBanner(version = bannerVersion()) {
   const nodes = "●───●───●───●───●───●───●───●";
   const tagline = "bootstrap • doctor • migrate • secure";
   const dash = (n) => "─".repeat(Math.max(0, n));
+  // The wordmark and box stay uncolored — they render in the terminal's default
+  // foreground (white), matching the sibling CLIs (leak-guard, cert-check,
+  // gitlab-sync), whose banners carry no ANSI at all.
   const row = (text) => ` │${`   ${text}`.padEnd(INNER)}│`;
   const top = ` ┌─ ${title} ${dash(INNER - (title.length + 3))}┐`;
   const vtok = ` v${version} `;
