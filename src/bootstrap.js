@@ -380,7 +380,16 @@ function ensureVoltaNode(runner, manifest, logger) {
 function ensureCorepack(runner, home, logger) {
   const installed = runner.run("volta", ["install", "corepack"]);
   if (installed.status !== 0) {
-    logger.error(`Failed to install Corepack via Volta: ${installed.stderr}`);
+    const detail = (installed.stderr || installed.stdout || `exit ${installed.status}`).trim();
+    logger.error(`Failed to install Corepack via Volta: ${detail}`);
+    const conflict = parseVoltaExecutableConflict(detail);
+    if (conflict) {
+      logger.error(
+        `Corepack cannot own ${conflict.executable} while Volta still has it installed via ${conflict.owner}.`
+      );
+      logger.error(`Run: volta uninstall ${conflict.owner}`);
+      logger.error("Then rerun: mac-bootstrap bootstrap --preset maverick");
+    }
     return { ok: false };
   }
   // On the very first bootstrap run the freshly-written ~/.zshrc has not been
@@ -400,6 +409,17 @@ function ensureCorepack(runner, home, logger) {
   }
   logger.log("Installed Corepack via Volta and enabled per-project pnpm/yarn (packageManager field).");
   return { ok: true };
+}
+
+function parseVoltaExecutableConflict(output) {
+  const match = String(output).match(/Executable '([^']+)' is already installed by ([^\n\r.]+)/);
+  if (!match) {
+    return null;
+  }
+  return {
+    executable: match[1],
+    owner: match[2].trim()
+  };
 }
 
 // uv owns Python interpreters (replacing brew python / pyenv). Seed a baseline

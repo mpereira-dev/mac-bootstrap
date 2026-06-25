@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1] - 2026-06-25
+### Added
+- Deferred plan note for macOS background activity attribution and future npm-global update policy decisions.
+
+### Fixed
+- Bootstrap now recognizes Volta executable conflicts when `corepack` cannot install because `pnpm` is already Volta-managed, then prints the exact `volta uninstall pnpm` recovery command before asking the operator to rerun bootstrap.
+
 ## [0.8.0] - 2026-06-24
 ### Added
 - Bootstrap now self-registers: it writes an executable `~/.local/bin/mac-bootstrap` launcher (execs the repo's `bin/mac-bootstrap` by absolute path) so the command resolves from anywhere after the first run. `~/.local/bin` is already created and put on PATH by bootstrap, so no extra setup is needed; `--dry-run` previews the launcher install.

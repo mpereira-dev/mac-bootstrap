@@ -157,6 +157,28 @@ test("bootstrap installs Corepack through Volta so it lands on PATH", async () =
   assert.ok(runner.calls.some((call) => call.join(" ") === "corepack enable"));
 });
 
+test("bootstrap explains Volta pnpm conflicts when Corepack cannot install", async () => {
+  const home = tempHome();
+  const runner = new FakeRunner({
+    failSteps: new Map([
+      [
+        "volta install corepack",
+        [
+          "error: Executable 'pnpm' is already installed by pnpm",
+          "",
+          "Please remove pnpm before installing corepack"
+        ].join("\n")
+      ]
+    ])
+  });
+  const logger = new TestLogger();
+  const exitCode = await bootstrap({ home, runner, logger, profiles: ["node"], networkCheck: async () => true });
+  assert.equal(exitCode, 1);
+  assert.match(logger.text(), /Corepack cannot own pnpm while Volta still has it installed via pnpm/);
+  assert.match(logger.text(), /Run: volta uninstall pnpm/);
+  assert.match(logger.text(), /Then rerun: mac-bootstrap bootstrap --preset maverick/);
+});
+
 test("bootstrap enables Corepack via the absolute Volta shim when present", async () => {
   const home = tempHome();
   const voltaBin = path.join(home, ".volta", "bin");
